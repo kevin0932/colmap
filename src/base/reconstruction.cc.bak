@@ -765,7 +765,6 @@ void Reconstruction::ReadBinary(const std::string& path) {
 void Reconstruction::WriteText(const std::string& path) const {
   WriteCamerasText(JoinPaths(path, "cameras.txt"));
   WriteImagesText(JoinPaths(path, "images.txt"));
-  WriteRelativePosesText(JoinPaths(path, "relative_poses.txt"));
   WritePoints3DText(JoinPaths(path, "points3D.txt"));
 }
 
@@ -1945,77 +1944,6 @@ void Reconstruction::WriteImagesText(const std::string& path) const {
     line_string = line.str();
     line_string = line_string.substr(0, line_string.size() - 1);
     file << line_string << std::endl;
-  }
-}
-
-void Reconstruction::WriteRelativePosesText(const std::string& path) const {
-  std::ofstream file(path, std::ios::trunc);
-  CHECK(file.is_open()) << path;
-
-  file << "# Relative Pose list with one line of data per pair:" << std::endl;
-  file << "#   IMAGE_ID1, IMAGE_ID2, QW12, QX12, QY12, QZ12, TX12, TY12, TZ12, CAMERA_ID1, "
-          "NAME1, CAMERA_ID1, NAME2"
-       << std::endl;
-
-  for (const auto& image1 : images_) {
-    if (!image1.second.IsRegistered()) {
-      continue;
-    }
-
-    for (const auto& image2 : images_) {
-      if (!image2.second.IsRegistered()) {
-        continue;
-      }
-      if(image1.first==image2.first)
-        continue;
-
-        std::ostringstream line;
-        std::string line_string;
-
-        line << image1.first << " " << image2.first << " ";
-
-        const Eigen::Vector4d normalized_qvec1 = NormalizeQuaternion(image1.second.Qvec());
-        const Eigen::Vector4d normalized_qvec2 = NormalizeQuaternion(image2.second.Qvec());
-        const Eigen::Vector3d tvec1 = image1.second.Tvec();
-        const Eigen::Vector3d tvec2 = image2.second.Tvec();
-        Eigen::Vector4d qvec12;
-        Eigen::Vector3d tvec12;
-        ComputeRelativePose(normalized_qvec1, tvec1, normalized_qvec2, tvec2, &qvec12, &tvec12);
-
-        // QVEC (qw, qx, qy, qz)
-        line << qvec12[0] << " ";
-        line << qvec12[1] << " ";
-        line << qvec12[2] << " ";
-        line << qvec12[3] << " ";
-
-        // TVEC
-        line << tvec12[0] << " ";
-        line << tvec12[1] << " ";
-        line << tvec12[2] << " ";
-
-        line << image1.second.CameraId() << " ";
-        line << image1.second.Name() << " ";
-        line << image2.second.CameraId() << " ";
-        line << image2.second.Name();
-
-        file << line.str() << std::endl;
-
-        // line.str("");
-        // line.clear();
-        //
-        // for (const Point2D& point2D : image.second.Points2D()) {
-        //   line << point2D.X() << " ";
-        //   line << point2D.Y() << " ";
-        //   if (point2D.HasPoint3D()) {
-        //     line << point2D.Point3DId() << " ";
-        //   } else {
-        //     line << -1 << " ";
-        //   }
-        // }
-        // line_string = line.str();
-        // line_string = line_string.substr(0, line_string.size() - 1);
-        // file << line_string << std::endl;
-    }
   }
 }
 
