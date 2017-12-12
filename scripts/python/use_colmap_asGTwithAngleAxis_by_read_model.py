@@ -33,6 +33,36 @@ Image = collections.namedtuple(
     "Image", ["id", "qvec", "tvec", "camera_id", "name", "xys", "point3D_ids"])
 Point3D = collections.namedtuple(
     "Point3D", ["id", "xyz", "rgb", "error", "image_ids", "point2D_idxs"])
+ImagePairGT = collections.namedtuple(
+    "ImagePairGT", ["id1", "id2", "qvec12", "tvec12", "camera_id1", "name1", "camera_id2", "name2", "rotmat12"])
+
+def read_relative_poses_text(path):
+    image_pair_gt = {}
+    dummy_image_pair_id = 1
+    with open(path, "r") as fid:
+        while True:
+            line = fid.readline()
+            if not line:
+                break
+            line = line.strip()
+            if len(line) > 0 and line[0] != "#":
+                elems = line.split()
+                image_id1 = int(elems[0])
+                image_id2 = int(elems[1])
+                qvec12 = np.array(tuple(map(float, elems[2:6])))
+                tvec12 = np.array(tuple(map(float, elems[6:9])))
+                camera_id1 = int(elems[9])
+                image_name1 = elems[10]
+                camera_id2 = int(elems[11])
+                image_name2 = elems[12]
+                rotmat_r1 = np.array(tuple(map(float, elems[13:16])))
+                rotmat_r2 = np.array(tuple(map(float, elems[16:19])))
+                rotmat_r3 = np.array(tuple(map(float, elems[19:22])))
+                RelativeRotationMat = np.array([rotmat_r1, rotmat_r2, rotmat_r3])
+                # print("RelativeRotationMat.shape = ", RelativeRotationMat.shape)
+                image_pair_gt[dummy_image_pair_id] = ImagePairGT(id1=image_id1, id2=image_id2, qvec12=qvec12, tvec12=tvec12, camera_id1=camera_id1, name1=image_name1, camera_id2=camera_id2, name2=image_name2, rotmat12 = RelativeRotationMat)
+                dummy_image_pair_id += 1
+    return image_pair_gt
 
 
 CAMERA_MODELS = {
@@ -247,11 +277,13 @@ def read_model(path, ext):
         cameras = read_cameras_text(os.path.join(path, "cameras" + ext))
         images = read_images_text(os.path.join(path, "images" + ext))
         points3D = read_points3D_text(os.path.join(path, "points3D") + ext)
+        relative_poses_pairGT = read_relative_poses_text(os.path.join(path, "relative_poses") + ext)
+        return cameras, images, points3D, relative_poses_pairGT
     else:
         cameras = read_cameras_binary(os.path.join(path, "cameras" + ext))
         images = read_images_binary(os.path.join(path, "images" + ext))
         points3D = read_points3d_binary(os.path.join(path, "points3D") + ext)
-    return cameras, images, points3D
+        return cameras, images, points3D
 
 
 # http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
@@ -442,14 +474,17 @@ def euler2angle_axis(z=0, y=0, x=0):
 
 def main():
     if len(sys.argv) != 3:
-        print("Usage: python read_model.py path/to/model/folder [.txt,.bin]")
+        # print("Usage: python read_model.py path/to/model/folder [.txt,.bin]")
+        print("Usage: python read_model.py path/to/model/folder .txt")
         return
 
-    cameras, images, points3D = read_model(path=sys.argv[1], ext=sys.argv[2])
+    cameras, images, points3D, relative_poses_pairGT = read_model(path=sys.argv[1], ext=sys.argv[2])
+
 
     print("num_cameras:", len(cameras))
     print("num_images:", len(images))
     print("num_points3D:", len(points3D))
+    print("num_relative_poses_pairGT:", len(relative_poses_pairGT))
 
     #Image = collections.namedtuple(
     #    "Image", ["id", "qvec", "tvec", "camera_id", "name", "xys", "point3D_ids"])
@@ -483,6 +518,27 @@ def main():
         # GT_file.write("%d %d " % (images[imgID].id, images[imgID].camera_id) + images[imgID].name + "\n")
 
     GT_file.close()
+
+    # test if theia and colmap have the same transformation systems
+    outputGTfilepath_2 = '/home/kevin/JohannesCode/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
+
+    GT_file_2 = open(outputGTfilepath_2,'w')
+
+    for i in range(len(images)):
+        imgID = i+1
+
+        tmpRotMat = quaternion2RotMat(images[imgID].qvec[0], images[imgID].qvec[1], images[imgID].qvec[2], images[imgID].qvec[3])
+        #print(tmpRotMat.shape)
+        eulerAnlges = mat2euler(tmpRotMat)
+        recov_angle_axis_result = euler2angle_axis(eulerAnlges[0], eulerAnlges[1], eulerAnlges[2])
+        R_angleaxis = recov_angle_axis_result[0]*(recov_angle_axis_result[1])
+        R_angleaxis = np.array(R_angleaxis, dtype=np.float32)
+
+        GT_file_2.write("%s %s %s %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n" % (images[imgID].id, images[imgID].camera_id, images[imgID].name, images[imgID].qvec[0], images[imgID].qvec[1], images[imgID].qvec[2], images[imgID].qvec[3], images[imgID].tvec[0], images[imgID].tvec[1], images[imgID].tvec[2], tmpRotMat[0,0], tmpRotMat[0,1], tmpRotMat[0,2], tmpRotMat[1,0], tmpRotMat[1,1], tmpRotMat[1,2], tmpRotMat[2,0], tmpRotMat[2,1], tmpRotMat[2,2], R_angleaxis[0], R_angleaxis[1], R_angleaxis[2]))
+        # GT_file_2.write("%d %d %s %f %f %f %f %f %f %f\n" % (images[imgID].id, images[imgID].camera_id, images[imgID].name, images[imgID].qvec[0], images[imgID].qvec[1], images[imgID].qvec[2], images[imgID].qvec[3], images[imgID].tvec[0], images[imgID].tvec[1], images[imgID].tvec[2]))
+        # GT_file_2.write("%d %d " % (images[imgID].id, images[imgID].camera_id) + images[imgID].name + "\n")
+
+    GT_file_2.close()
 
 
 

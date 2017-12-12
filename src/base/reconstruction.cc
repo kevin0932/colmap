@@ -1954,7 +1954,7 @@ void Reconstruction::WriteRelativePosesText(const std::string& path) const {
 
   file << "# Relative Pose list with one line of data per pair:" << std::endl;
   file << "#   IMAGE_ID1, IMAGE_ID2, QW12, QX12, QY12, QZ12, TX12, TY12, TZ12, CAMERA_ID1, "
-          "NAME1, CAMERA_ID1, NAME2"
+          "NAME1, CAMERA_ID1, NAME2, RotMat[0,0], RotMat[0,1], RotMat[0,2], RotMat[1,0], RotMat[1,1], RotMat[1,2], RotMat[2,0], RotMat[2,1], RotMat[2,2]"
        << std::endl;
 
   for (const auto& image1 : images_) {
@@ -1966,12 +1966,13 @@ void Reconstruction::WriteRelativePosesText(const std::string& path) const {
       if (!image2.second.IsRegistered()) {
         continue;
       }
-      if(image1.first==image2.first)
-        continue;
+      //if(image1.first==image2.first)
+        //continue;
 
         std::ostringstream line;
         std::string line_string;
 
+        // line << image1.first << " " << image1.second.Name() << " " << image2.first << " " << image2.second.Name() << " ";
         line << image1.first << " " << image2.first << " ";
 
         const Eigen::Vector4d normalized_qvec1 = NormalizeQuaternion(image1.second.Qvec());
@@ -1996,7 +1997,19 @@ void Reconstruction::WriteRelativePosesText(const std::string& path) const {
         line << image1.second.CameraId() << " ";
         line << image1.second.Name() << " ";
         line << image2.second.CameraId() << " ";
-        line << image2.second.Name();
+        line << image2.second.Name() << " ";
+
+
+        Eigen::Matrix3d RotMat12 = QuaternionToRotationMatrix(qvec12);
+        line << RotMat12(0,0) << " ";
+        line << RotMat12(0,1) << " ";
+        line << RotMat12(0,2) << " ";
+        line << RotMat12(1,0) << " ";
+        line << RotMat12(1,1) << " ";
+        line << RotMat12(1,2) << " ";
+        line << RotMat12(2,0) << " ";
+        line << RotMat12(2,1) << " ";
+        line << RotMat12(2,2);
 
         file << line.str() << std::endl;
 
