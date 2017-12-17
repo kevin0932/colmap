@@ -1926,7 +1926,21 @@ void Reconstruction::WriteImagesText(const std::string& path) const {
 
     line << image.second.CameraId() << " ";
 
-    line << image.second.Name();
+    // convert quaternion to rotation matrix for DEBUG and visualization in theia
+    Eigen::Matrix3d RotMat = QuaternionToRotationMatrix(normalized_qvec);
+
+    //line << image.second.Name();
+    line << image.second.Name() << " ";
+
+    line << RotMat(0,0) << " ";
+    line << RotMat(0,1) << " ";
+    line << RotMat(0,2) << " ";
+    line << RotMat(1,0) << " ";
+    line << RotMat(1,1) << " ";
+    line << RotMat(1,2) << " ";
+    line << RotMat(2,0) << " ";
+    line << RotMat(2,1) << " ";
+    line << RotMat(2,2);
 
     file << line.str() << std::endl;
 
