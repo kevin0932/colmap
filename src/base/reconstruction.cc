@@ -1962,6 +1962,38 @@ void Reconstruction::WriteImagesText(const std::string& path) const {
   }
 }
 
+Eigen::Matrix3d quatToMatrix(const Eigen::Vector4d qvec)
+{
+    Eigen::Matrix3d RotMat;
+    double sqw = qvec[0]*qvec[0];
+    double sqx = qvec[1]*qvec[1];
+    double sqy = qvec[2]*qvec[2];
+    double sqz = qvec[3]*qvec[3];
+
+    // invs (inverse square length) is only required if quaternion is not already normalised
+    double invs = 1 / (sqx + sqy + sqz + sqw);
+    RotMat(0,0) = ( sqx - sqy - sqz + sqw)*invs ; // since sqw + sqx + sqy + sqz =1/invs*invs
+    RotMat(1,1) = (-sqx + sqy - sqz + sqw)*invs ;
+    RotMat(2,2) = (-sqx - sqy + sqz + sqw)*invs ;
+
+    double tmp1 = qvec[1]*qvec[2];
+    double tmp2 = qvec[3]*qvec[0];
+    RotMat(1,0) = 2.0 * (tmp1 + tmp2)*invs ;
+    RotMat(0,1) = 2.0 * (tmp1 - tmp2)*invs ;
+
+    tmp1 = qvec[1]*qvec[3];
+    tmp2 = qvec[2]*qvec[0];
+    RotMat(2,0) = 2.0 * (tmp1 - tmp2)*invs ;
+    RotMat(0,2) = 2.0 * (tmp1 + tmp2)*invs ;
+    tmp1 = qvec[2]*qvec[3];
+    tmp2 = qvec[1]*qvec[0];
+    RotMat(2,1) = 2.0 * (tmp1 + tmp2)*invs ;
+    RotMat(1,2) = 2.0 * (tmp1 - tmp2)*invs ;
+
+    return RotMat;
+}
+
+
 void Reconstruction::WriteRelativePosesText(const std::string& path) const {
   std::ofstream file(path, std::ios::trunc);
   CHECK(file.is_open()) << path;
@@ -1997,16 +2029,29 @@ void Reconstruction::WriteRelativePosesText(const std::string& path) const {
         Eigen::Vector3d tvec12;
         ComputeRelativePose(normalized_qvec1, tvec1, normalized_qvec2, tvec2, &qvec12, &tvec12);
 
+        const Eigen::Matrix3d rot1 = quatToMatrix(normalized_qvec1);
+        const Eigen::Matrix3d rot2 = quatToMatrix(normalized_qvec2);
+        const Eigen::Matrix3d rot12 = rot2.transpose() * rot1;
+        const Eigen::Vector3d t12 = rot1.transpose() * (rot1.transpose()*tvec1 - rot2.transpose()*tvec2);
+        if(t12!=tvec12)
+        {
+            std::cout << "check relative poses calculation! t12 = " << t12[0] << " " << t12[1] << " " << t12[2] << "; while tvec12 = " << tvec12[0] << " " << tvec12[1] << " " << tvec12[2] << std::endl;
+        }
         // QVEC (qw, qx, qy, qz)
         line << qvec12[0] << " ";
         line << qvec12[1] << " ";
         line << qvec12[2] << " ";
         line << qvec12[3] << " ";
 
+        // // TVEC
+        // line << tvec12[0] << " ";
+        // line << tvec12[1] << " ";
+        // line << tvec12[2] << " ";
+
         // TVEC
-        line << tvec12[0] << " ";
-        line << tvec12[1] << " ";
-        line << tvec12[2] << " ";
+        line << t12[0] << " ";
+        line << t12[1] << " ";
+        line << t12[2] << " ";
 
         line << image1.second.CameraId() << " ";
         line << image1.second.Name() << " ";
@@ -2014,7 +2059,8 @@ void Reconstruction::WriteRelativePosesText(const std::string& path) const {
         line << image2.second.Name() << " ";
 
 
-        Eigen::Matrix3d RotMat12 = QuaternionToRotationMatrix(qvec12);
+        // Eigen::Matrix3d RotMat12 = QuaternionToRotationMatrix(qvec12);
+        Eigen::Matrix3d RotMat12 = rot12;
         line << RotMat12(0,0) << " ";
         line << RotMat12(0,1) << " ";
         line << RotMat12(0,2) << " ";
