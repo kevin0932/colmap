@@ -2031,9 +2031,22 @@ void Reconstruction::WriteRelativePosesText(const std::string& path) const {
 
         const Eigen::Matrix3d rot1 = quatToMatrix(normalized_qvec1);
         const Eigen::Matrix3d rot2 = quatToMatrix(normalized_qvec2);
-        const Eigen::Matrix3d rot12 = rot2.transpose() * rot1;
-        const Eigen::Vector3d t12 = rot1.transpose() * (rot1.transpose()*tvec1 - rot2.transpose()*tvec2);
+        // const Eigen::Matrix3d rot12 = rot2.transpose() * rot1;
+        // const Eigen::Vector3d t12 = rot1.transpose() * (rot1.transpose()*tvec1 - rot2.transpose()*tvec2);
+        const Eigen::Matrix3d rot12 = rot2 * rot1.transpose();
+        const Eigen::Vector3d t12 = rot1 * (rot1.transpose()*tvec1 - rot2.transpose()*tvec2);
         if(t12!=tvec12)
+        {
+            std::cout << "check relative poses calculation! t12 = " << t12[0] << " " << t12[1] << " " << t12[2] << "; while tvec12 = " << tvec12[0] << " " << tvec12[1] << " " << tvec12[2] << std::endl;
+        }
+        const Eigen::Matrix3d theia_rot1 = quatToMatrix(normalized_qvec1);
+        const Eigen::Matrix3d theia_rot2 = quatToMatrix(normalized_qvec2);
+        const Eigen::Vector3d theia_c1 = - rot1.transpose()*tvec1;
+        const Eigen::Vector3d theia_c2 = - rot2.transpose()*tvec2;
+
+        const Eigen::Matrix3d theia_rot12 = theia_rot2 * theia_rot1.transpose();
+        const Eigen::Vector3d theia_t12 = theia_rot1*(theia_c2 - theia_c1);
+        if(theia_t12!=tvec12)
         {
             std::cout << "check relative poses calculation! t12 = " << t12[0] << " " << t12[1] << " " << t12[2] << "; while tvec12 = " << tvec12[0] << " " << tvec12[1] << " " << tvec12[2] << std::endl;
         }
@@ -2049,9 +2062,9 @@ void Reconstruction::WriteRelativePosesText(const std::string& path) const {
         // line << tvec12[2] << " ";
 
         // TVEC
-        line << t12[0] << " ";
-        line << t12[1] << " ";
-        line << t12[2] << " ";
+        line << theia_t12[0] << " ";
+        line << theia_t12[1] << " ";
+        line << theia_t12[2] << " ";
 
         line << image1.second.CameraId() << " ";
         line << image1.second.Name() << " ";
@@ -2061,15 +2074,15 @@ void Reconstruction::WriteRelativePosesText(const std::string& path) const {
 
         // Eigen::Matrix3d RotMat12 = QuaternionToRotationMatrix(qvec12);
         Eigen::Matrix3d RotMat12 = rot12;
-        line << RotMat12(0,0) << " ";
-        line << RotMat12(0,1) << " ";
-        line << RotMat12(0,2) << " ";
-        line << RotMat12(1,0) << " ";
-        line << RotMat12(1,1) << " ";
-        line << RotMat12(1,2) << " ";
-        line << RotMat12(2,0) << " ";
-        line << RotMat12(2,1) << " ";
-        line << RotMat12(2,2);
+        line << theia_rot12(0,0) << " ";
+        line << theia_rot12(0,1) << " ";
+        line << theia_rot12(0,2) << " ";
+        line << theia_rot12(1,0) << " ";
+        line << theia_rot12(1,1) << " ";
+        line << theia_rot12(1,2) << " ";
+        line << theia_rot12(2,0) << " ";
+        line << theia_rot12(2,1) << " ";
+        line << theia_rot12(2,2);
 
         file << line.str() << std::endl;
 
