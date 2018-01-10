@@ -480,6 +480,7 @@ def main():
 
     cameras, images, points3D, relative_poses_pairGT = read_model(path=sys.argv[1], ext=sys.argv[2])
 
+    outputPath = sys.argv[1]
 
     print("num_cameras:", len(cameras))
     print("num_images:", len(images))
@@ -499,7 +500,7 @@ def main():
             print("the image id of name P1180141.JPG is ", imgIdx)
 
 
-    outputGTfilepath = '/home/kevin/JohannesCode/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
+    outputGTfilepath = outputPath+'/southbuilding_RtAngleAxis_groundtruth_from_colmap.txt'
 
     GT_file = open(outputGTfilepath,'w')
 
