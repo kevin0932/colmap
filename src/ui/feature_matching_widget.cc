@@ -75,6 +75,17 @@ class CustomMatchingTab : public FeatureMatchingTab {
   QComboBox* match_type_cb_;
 };
 
+class OFGuidedMatchingTab : public FeatureMatchingTab {
+ public:
+  OFGuidedMatchingTab(QWidget* parent, OptionManager* options);
+  void Run() override;
+
+ private:
+  std::string match_list_path_;
+  size_t image_scale_factor_;
+  QComboBox* match_type_cb_;
+};
+
 FeatureMatchingTab::FeatureMatchingTab(QWidget* parent, OptionManager* options)
     : OptionsWidget(parent),
       options_(options),
@@ -102,6 +113,10 @@ void FeatureMatchingTab::CreateGeneralOptions() {
   AddOptionInt(&options_->sift_matching->min_num_inliers, "min_num_inliers");
   AddOptionBool(&options_->sift_matching->multiple_models, "multiple_models");
   AddOptionBool(&options_->sift_matching->guided_matching, "guided_matching");
+
+  AddSpacer();
+
+  AddOptionBool(&options_->sift_matching->optical_flow_guided_matching, "optical_flow_guided_matching");
 
   AddSpacer();
 
@@ -273,6 +288,40 @@ void CustomMatchingTab::Run() {
   thread_control_widget_->StartThread("Matching...", true, matcher);
 }
 
+
+OFGuidedMatchingTab::OFGuidedMatchingTab(QWidget* parent, OptionManager* options)
+    : FeatureMatchingTab(parent, options) {
+  match_type_cb_ = new QComboBox(this);
+  match_type_cb_->addItem(QString("Image pairs and quantization maps"));
+  // match_type_cb_->addItem(QString("Raw feature matches"));
+  // match_type_cb_->addItem(QString("Inlier feature matches"));
+  grid_layout_->addWidget(match_type_cb_, grid_layout_->rowCount(), 1);
+
+  AddOptionFilePath(&match_list_path_, "match_list_path");
+
+  // AddOptionInt(&image_scale_factor_, "image_scale_factor", -1);
+  CreateGeneralOptions();
+}
+
+void OFGuidedMatchingTab::Run() {
+  WriteOptions();
+
+  if (!ExistsFile(match_list_path_)) {
+    QMessageBox::critical(this, "", tr("Path does not exist!"));
+    return;
+  }
+
+  Thread* matcher = nullptr;
+
+  OFGuidedImagePairsMatchingOptions matcher_options;
+  matcher_options.match_list_path = match_list_path_;
+  matcher_options.image_scale_factor = image_scale_factor_;
+  matcher = new OFGuidedImagePairsFeatureMatcher( matcher_options,
+                        *options_->sift_matching, *options_->database_path);
+
+  thread_control_widget_->StartThread("OF-Guided Matching...", true, matcher);
+}
+
 FeatureMatchingWidget::FeatureMatchingWidget(QWidget* parent,
                                              OptionManager* options)
     : parent_(parent) {
@@ -293,6 +342,7 @@ FeatureMatchingWidget::FeatureMatchingWidget(QWidget* parent,
   tab_widget_->addTab(new TransitiveMatchingTab(this, options),
                       tr("Transitive"));
   tab_widget_->addTab(new CustomMatchingTab(this, options), tr("Custom"));
+  tab_widget_->addTab(new OFGuidedMatchingTab(this, options), tr("OFGuided"));
 
   grid->addWidget(tab_widget_, 0, 0);
 }

@@ -26,6 +26,8 @@
 #include "util/cuda.h"
 #include "util/misc.h"
 
+#include <QTextStream>
+
 namespace colmap {
 namespace {
 
@@ -188,6 +190,12 @@ bool ImagePairsMatchingOptions::Check() const {
   return true;
 }
 
+bool OFGuidedImagePairsMatchingOptions::Check() const {
+  CHECK_OPTION_GT(block_size, 0);
+  std::cout << "OFGuidedImagePairsMatchingOptions::Check()!!!!!" << std::endl;
+  return true;
+}
+
 bool FeaturePairsMatchingOptions::Check() const { return true; }
 
 FeatureMatcherCache::FeatureMatcherCache(const size_t cache_size,
@@ -323,11 +331,14 @@ void SiftCPUFeatureMatcher::Run() {
     if (input_job.IsValid()) {
       auto data = input_job.Data();
 
+      // const FeatureKeypoints keypoints1 = cache_->GetKeypoints(data.image_id1);
+      // const FeatureKeypoints keypoints2 = cache_->GetKeypoints(data.image_id2);
       const FeatureDescriptors descriptors1 =
           cache_->GetDescriptors(data.image_id1);
       const FeatureDescriptors descriptors2 =
           cache_->GetDescriptors(data.image_id2);
       MatchSiftFeaturesCPU(options_, descriptors1, descriptors2, &data.matches);
+      // OFGuidedMatchSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
 
       CHECK(output_queue_->Push(data));
     }
@@ -363,6 +374,7 @@ void SiftGPUFeatureMatcher::Run() {
     SignalInvalidSetup();
     return;
   }
+  std::cout << "Kevin DEBUG: GPU is used during feature matching!" << std::endl;
 
   SignalValidSetup();
 
@@ -410,6 +422,15 @@ GuidedSiftCPUFeatureMatcher::GuidedSiftCPUFeatureMatcher(
   CHECK(options_.Check());
 }
 
+OFGuidedSiftCPUFeatureMatcher::OFGuidedSiftCPUFeatureMatcher(
+    const SiftMatchingOptions& options, FeatureMatcherCache* cache,
+    JobQueue<Input>* input_queue, JobQueue<Output>* output_queue)
+    : FeatureMatcherThread(options, cache),
+      input_queue_(input_queue),
+      output_queue_(output_queue) {
+  CHECK(options_.Check());
+}
+
 void GuidedSiftCPUFeatureMatcher::Run() {
   SignalValidSetup();
 
@@ -438,6 +459,42 @@ void GuidedSiftCPUFeatureMatcher::Run() {
                                  descriptors2, &data.two_view_geometry);
 
       CHECK(output_queue_->Push(data));
+    }
+  }
+}
+
+void OFGuidedSiftCPUFeatureMatcher::Run() {
+  std::cout << "@@@@@@@@@@ OFGuidedSiftCPUFeatureMatcher::Run()" << std::endl;
+  SignalValidSetup();
+
+  while (true) {
+    if (IsStopped()) {
+      break;
+    }
+
+    const auto input_job = input_queue_->Pop();
+    if (input_job.IsValid()) {
+      auto data = input_job.Data();
+      // const std::vector<FeatureMatches> quantization_maps = data.quantization_maps;
+      const FeatureMatches quantization_map = data.quantization_map;
+      // if (data.two_view_geometry.inlier_matches.size() <
+      //     static_cast<size_t>(options_.min_num_inliers)) {
+      //   CHECK(output_queue_->Push(data));
+      //   continue;
+      // }
+
+      const FeatureKeypoints keypoints1 = cache_->GetKeypoints(data.image_id1);
+      const FeatureKeypoints keypoints2 = cache_->GetKeypoints(data.image_id2);
+      const FeatureDescriptors descriptors1 =
+          cache_->GetDescriptors(data.image_id1);
+      const FeatureDescriptors descriptors2 =
+          cache_->GetDescriptors(data.image_id2);
+      OFGuidedMatchSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      // MatchSiftFeaturesCPU(options_, descriptors1, descriptors2, &data.matches);
+      // MatchGuidedSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, &data.two_view_geometry);
+      CHECK(output_queue_->Push(data));
+      // // added to trigger verifier???
+      // CHECK(verifier_queue_->Push(data));
     }
   }
 }
@@ -601,20 +658,49 @@ SiftFeatureMatcher::SiftFeatureMatcher(const SiftMatchingOptions& options,
   }
 #endif  // CUDA_ENABLED
 
-  if (options_.use_gpu) {
-    auto gpu_options = options_;
-    matchers_.reserve(gpu_indices.size());
-    for (const auto& gpu_index : gpu_indices) {
-      gpu_options.gpu_index = std::to_string(gpu_index);
-      matchers_.emplace_back(new SiftGPUFeatureMatcher(
-          gpu_options, cache, &matcher_queue_, &verifier_queue_));
-    }
+  if (options_.optical_flow_guided_matching) {
+      if (options_.use_gpu) {
+        // auto gpu_options = options_;
+        // matchers_.reserve(gpu_indices.size());
+        // for (const auto& gpu_index : gpu_indices) {
+        //   gpu_options.gpu_index = std::to_string(gpu_index);
+        //   matchers_.emplace_back(new OFGuidedSiftGPUFeatureMatcher(
+        //       gpu_options, cache, &matcher_queue_, &output_queue_));
+        // }
+        std::cout << "options_.use_gpu is set to true!" << std::endl;
+        //qDebug() << "options_.use_gpu is set to true!";
+        //QTextStream(stdout) << "~~~~options_.use_gpu is set to true!~~~~" << endl;
+        matchers_.reserve(num_threads);
+        for (int i = 0; i < num_threads; ++i) {
+          matchers_.emplace_back(new OFGuidedSiftCPUFeatureMatcher(
+              options_, cache, &matcher_queue_, &verifier_queue_));
+        }
+      } else {
+        std::cout << "options_.use_gpu is set to false!" << std::endl;
+        //qDebug() << "options_.use_gpu is set to false!";
+        //QTextStream(stdout) << "~~~~options_.use_gpu is set to false!~~~~" << endl;
+        matchers_.reserve(num_threads);
+        for (int i = 0; i < num_threads; ++i) {
+          matchers_.emplace_back(new OFGuidedSiftCPUFeatureMatcher(
+              options_, cache, &matcher_queue_, &verifier_queue_));
+        }
+      }
   } else {
-    matchers_.reserve(num_threads);
-    for (int i = 0; i < num_threads; ++i) {
-      matchers_.emplace_back(new SiftCPUFeatureMatcher(
-          options_, cache, &matcher_queue_, &verifier_queue_));
-    }
+      if (options_.use_gpu) {
+        auto gpu_options = options_;
+        matchers_.reserve(gpu_indices.size());
+        for (const auto& gpu_index : gpu_indices) {
+          gpu_options.gpu_index = std::to_string(gpu_index);
+          matchers_.emplace_back(new SiftGPUFeatureMatcher(
+              gpu_options, cache, &matcher_queue_, &verifier_queue_));
+        }
+      } else {
+        matchers_.reserve(num_threads);
+        for (int i = 0; i < num_threads; ++i) {
+          matchers_.emplace_back(new SiftCPUFeatureMatcher(
+              options_, cache, &matcher_queue_, &verifier_queue_));
+        }
+      }
   }
 
   verifiers_.reserve(num_threads);
@@ -640,11 +726,13 @@ SiftFeatureMatcher::SiftFeatureMatcher(const SiftMatchingOptions& options,
       }
     }
   } else {
+    std::cout << "verifiers_.emplace_back(new TwoViewGeometryVerifier()" << std::endl;
     for (int i = 0; i < num_threads; ++i) {
       verifiers_.emplace_back(new TwoViewGeometryVerifier(
           options_, cache, &verifier_queue_, &output_queue_));
     }
   }
+
 }
 
 SiftFeatureMatcher::~SiftFeatureMatcher() {
@@ -684,17 +772,22 @@ SiftFeatureMatcher::~SiftFeatureMatcher() {
 }
 
 bool SiftFeatureMatcher::Setup() {
+  std::cout << "SiftFeatureMatcher::Setup() ***********" << std::endl;
   const int max_num_features = CHECK_NOTNULL(database_)->MaxNumDescriptors();
   options_.max_num_matches =
       std::min(options_.max_num_matches, max_num_features);
 
   for (auto& matcher : matchers_) {
+    std::cout << "1. matcher->Start(); ***********" << std::endl;
     matcher->SetMaxNumMatches(options_.max_num_matches);
+    std::cout << "2. matcher->Start(); ***********" << std::endl;
     matcher->Start();
+    std::cout << "3. matcher->Start(); ***********" << std::endl;
   }
 
   for (auto& verifier : verifiers_) {
     verifier->Start();
+    std::cout << "* . verifier->Start(); ***********" << std::endl;
   }
 
   for (auto& guided_matcher : guided_matchers_) {
@@ -806,6 +899,120 @@ void SiftFeatureMatcher::Match(
     }
 
     cache_->WriteMatches(output.image_id1, output.image_id2, output.matches);
+    cache_->WriteInlierMatches(output.image_id1, output.image_id2,
+                               output.two_view_geometry);
+  }
+
+  CHECK_EQ(output_queue_.Size(), 0);
+}
+
+void SiftFeatureMatcher::OFGuidedMatch(
+    const std::vector<std::pair<image_t, image_t>>& image_pairs,
+    const std::vector<FeatureMatches>& quantization_maps) {
+  std::cout << "SiftFeatureMatcher::OFGuidedMatch" << std::endl;
+  std::cout << "quantization_maps.size() = " << quantization_maps.size() << std::endl;
+  CHECK_NOTNULL(database_);
+  CHECK_NOTNULL(cache_);
+  CHECK(is_setup_);
+
+  if (image_pairs.empty()) {
+    return;
+  }
+
+  DatabaseTransaction database_transaction(database_);
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Match the image pairs
+  //////////////////////////////////////////////////////////////////////////////
+
+  std::unordered_set<image_pair_t> image_pair_ids;
+  image_pair_ids.reserve(image_pairs.size());
+
+  size_t num_outputs = 0;
+  // for (const auto image_pair : image_pairs) {
+  for (size_t cnt=0; cnt<image_pairs.size(); cnt++) {
+    const auto image_pair = image_pairs[cnt];
+    const auto quantization_map = quantization_maps[cnt];
+
+    // Avoid self-matches.
+    if (image_pair.first == image_pair.second) {
+      continue;
+    }
+
+    // Avoid duplicate image pairs.
+    const image_pair_t pair_id =
+        Database::ImagePairToPairId(image_pair.first, image_pair.second);
+    if (image_pair_ids.count(pair_id) > 0) {
+      continue;
+    }
+
+    image_pair_ids.insert(pair_id);
+
+    const bool exists_matches =
+        cache_->ExistsMatches(image_pair.first, image_pair.second);
+    const bool exists_inlier_matches =
+        cache_->ExistsInlierMatches(image_pair.first, image_pair.second);
+
+    if (exists_matches && exists_inlier_matches) {
+      continue;
+    }
+
+    num_outputs += 1;
+
+    // If only one of the matches or inlier matches exist, we recompute them
+    // from scratch and delete the existing results. This must be done before
+    // pushing the jobs to the queue, otherwise database constraints might fail
+    // when writing an existing result into the database.
+
+    if (exists_inlier_matches) {
+      cache_->DeleteInlierMatches(image_pair.first, image_pair.second);
+    }
+
+    internal::FeatureMatcherData data;
+    data.image_id1 = image_pair.first;
+    data.image_id2 = image_pair.second;
+    // data.quantization_maps.clear();
+    // data.quantization_maps = std::move(quantization_maps);
+    data.quantization_map = (quantization_map);
+    //data.quantization_maps.assign(quantization_maps.begin(), quantization_maps.end());  // copy the vector data
+
+    if (exists_matches) {
+      data.matches = cache_->GetMatches(image_pair.first, image_pair.second);
+      cache_->DeleteMatches(image_pair.first, image_pair.second);
+      std::cout << "~~~~verifier_queue_.Push(data)~~~~" << std::endl;
+      CHECK(verifier_queue_.Push(data));
+    } else {
+      std::cout << "~~~~matcher_queue_.Push(data)~~~~" << std::endl;
+      //qDebug() << "~~~~matcher_queue_.Push(data)~~~~";
+      //QTextStream(stdout) << "~~~~matcher_queue_.Push(data)~~~~" << endl;
+      CHECK(matcher_queue_.Push(data));
+      std::cout << "$$$$$$$$ matcher_queue_.Push(data)~~~~" << std::endl;
+    }
+  }
+  // // added for the convenience of DEBUGING!
+  // return;
+  //////////////////////////////////////////////////////////////////////////////
+  // Write results to database
+  //////////////////////////////////////////////////////////////////////////////
+
+  for (size_t i = 0; i < num_outputs; ++i) {
+    const auto output_job = output_queue_.Pop();
+    CHECK(output_job.IsValid());
+    auto output = output_job.Data();
+
+    if (output.matches.size() < static_cast<size_t>(options_.min_num_inliers)) {
+      output.matches = {};
+    }
+
+    if (output.two_view_geometry.inlier_matches.size() <
+        static_cast<size_t>(options_.min_num_inliers)) {
+      output.two_view_geometry = TwoViewGeometry();
+      std::cout << "^ ~ ^ output.two_view_geometry.inlier_matches.size() < options_.min_num_inliers" << std::endl;
+    }
+
+    std::cout << "$$$$$$$$ Start WriteMatches~~~~" << std::endl;
+    cache_->WriteMatches(output.image_id1, output.image_id2, output.matches);
+    std::cout << "$$$$$$$$ Start WriteInlierMatches~~~~" << std::endl;
     cache_->WriteInlierMatches(output.image_id1, output.image_id2,
                                output.two_view_geometry);
   }
@@ -1625,5 +1832,280 @@ void FeaturePairsFeatureMatcher::Run() {
 
   GetTimer().PrintMinutes();
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+OFGuidedImagePairsFeatureMatcher::OFGuidedImagePairsFeatureMatcher(
+    const OFGuidedImagePairsMatchingOptions& options,
+    const SiftMatchingOptions& match_options, const std::string& database_path)
+    : options_(options),
+      match_options_(match_options),
+      database_(database_path),
+      cache_(options.block_size, &database_),
+      matcher_(match_options, &database_, &cache_) {
+  std::cout << "OFGuidedImagePairsFeatureMatcher::constructor()~~~~~~~~~~~~~~" << std::endl;
+  CHECK(options_.Check());
+  CHECK(match_options_.Check());
+}
+
+
+void OFGuidedImagePairsFeatureMatcher::Run() {
+  PrintHeading1("Optical flow guided feature matching");
+  std::cout << "OFGuidedImagePairsFeatureMatcher::Run()~~~~~~~~~~~~~~" << std::endl;
+  if (!matcher_.Setup()) {
+    return;
+  }
+  std::cout << "matcher_.Setup()~~~~~~~~~~~~~~" << std::endl;
+
+  cache_.Setup();
+  std::cout << "cache_.Setup()~~~~~~~~~~~~~~" << std::endl;
+
+  std::unordered_map<std::string, const Image*> image_name_to_image;
+  image_name_to_image.reserve(cache_.GetImageIds().size());
+  for (const auto image_id : cache_.GetImageIds()) {
+    const auto& image = cache_.GetImage(image_id);
+    image_name_to_image.emplace(image.Name(), &image);
+  }
+
+  std::unordered_map<std::string, image_t> image_name_to_image_id;
+  image_name_to_image_id.reserve(cache_.GetImageIds().size());
+  for (const auto image_id : cache_.GetImageIds()) {
+    const auto& image = cache_.GetImage(image_id);
+    image_name_to_image_id.emplace(image.Name(), image_id);
+  }
+
+  std::ifstream file(options_.match_list_path);
+  CHECK(file.is_open()) << options_.match_list_path;
+
+  std::string line;
+  std::vector<std::pair<image_t, image_t>> image_pairs;
+  std::vector<FeatureMatches> quantization_maps;
+  while (std::getline(file, line)) {
+    if (IsStopped()) {
+      GetTimer().PrintMinutes();
+      return;
+    }
+
+    StringTrim(&line);
+    // if (line.empty()) {
+    //   continue;
+    // }
+
+    std::istringstream line_stream(line);
+
+    std::string image_name1, image_name2;
+    try {
+      line_stream >> image_name1 >> image_name2;
+    } catch (...) {
+      std::cerr << "ERROR: Could not read image pair." << std::endl;
+      break;
+    }
+
+    std::cout << StringPrintf("%s - %s", image_name1.c_str(),
+                              image_name2.c_str())
+              << std::endl;
+
+
+
+    const Image& image1 = *image_name_to_image[image_name1];
+    const Image& image2 = *image_name_to_image[image_name2];
+
+    bool skip_pair = false;
+    if (database_.ExistsInlierMatches(image1.ImageId(), image2.ImageId())) {
+      std::cout << "SKIP: Matches for image pair already exist in database."
+                << std::endl;
+      skip_pair = true;
+    }
+
+    FeatureMatches quantization_matches_by_pair;
+    while (std::getline(file, line)) {
+      StringTrim(&line);
+
+      if (line.empty()) {
+        break;
+      }
+
+      std::istringstream line_stream(line);
+
+      FeatureMatch quantization_match;
+      try {
+        line_stream >> quantization_match.point2D_idx1 >> quantization_match.point2D_idx2;
+      } catch (...) {
+        std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
+        break;
+      }
+
+      quantization_matches_by_pair.push_back(quantization_match);
+    }
+    // if (skip_pair) {
+    //   continue;
+    // }
+    if (image_name_to_image.count(image_name1) == 0) {
+      std::cout << StringPrintf("SKIP: Image %s not found in database.",
+                                image_name1.c_str())
+                << std::endl;
+      break;
+    }
+    if (image_name_to_image.count(image_name2) == 0) {
+      std::cout << StringPrintf("SKIP: Image %s not found in database.",
+                                image_name2.c_str())
+                << std::endl;
+      break;
+    }
+
+    image_pairs.emplace_back(image_name_to_image_id.at(image_name1),
+                             image_name_to_image_id.at(image_name2));
+    quantization_maps.push_back(quantization_matches_by_pair);
+  }
+  std::cout << "read match_list_file is done!" << std::endl;
+
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Feature matching
+  //////////////////////////////////////////////////////////////////////////////
+  std::cout << "options_.block_size = " << options_.block_size << std::endl;
+  const size_t num_match_blocks = image_pairs.size() / options_.block_size + 1;
+  //const size_t num_match_blocks = image_pairs.size() / 1 + 1;
+  std::vector<std::pair<image_t, image_t>> block_image_pairs;
+  block_image_pairs.reserve(options_.block_size);
+  std::vector<FeatureMatches> block_quantization_maps;
+  block_quantization_maps.reserve(options_.block_size);
+
+  for (size_t i = 0; i < image_pairs.size(); i += options_.block_size) {
+    std::cout << "Enter Loop: options_.block_size = " << options_.block_size << std::endl;
+    if (IsStopped()) {
+      GetTimer().PrintMinutes();
+      return;
+    }
+
+    Timer timer;
+    timer.Start();
+
+    std::cout << StringPrintf("Matching block [%d/%d]",
+                              i / options_.block_size + 1, num_match_blocks)
+              << std::flush;
+
+    const size_t block_end = i + options_.block_size <= image_pairs.size()
+                                 ? i + options_.block_size
+                                 : image_pairs.size();
+    std::vector<std::pair<image_t, image_t>> block_image_pairs;
+    block_image_pairs.reserve(options_.block_size);
+    for (size_t j = i; j < block_end; ++j) {
+      block_image_pairs.push_back(image_pairs[j]);
+    }
+    std::vector<FeatureMatches> block_quantization_maps;
+    block_quantization_maps.reserve(options_.block_size);
+    for (size_t j = i; j < block_end; ++j) {
+      block_quantization_maps.push_back(quantization_maps[j]);
+    }
+
+    //matcher_.Match(block_image_pairs);
+    matcher_.OFGuidedMatch(block_image_pairs, block_quantization_maps);
+
+    PrintElapsedTime(timer);
+  }
+  ////////////////////////////////////////
+  // shall I add verifiers explicitly???
+  ////////////////////////////////////////
+
+  ////////////////////////////////////////
+
+  GetTimer().PrintMinutes();
+}
+
+// void OFGuidedImagePairsFeatureMatcher::Run() {
+//   PrintHeading1("Optical flow guided feature matching");
+//
+//   if (!matcher_.Setup()) {
+//     return;
+//   }
+//
+//   cache_.Setup();
+//
+//   //////////////////////////////////////////////////////////////////////////////
+//   // Reading image pairs list
+//   //////////////////////////////////////////////////////////////////////////////
+//
+//   std::unordered_map<std::string, image_t> image_name_to_image_id;
+//   image_name_to_image_id.reserve(cache_.GetImageIds().size());
+//   for (const auto image_id : cache_.GetImageIds()) {
+//     const auto& image = cache_.GetImage(image_id);
+//     image_name_to_image_id.emplace(image.Name(), image_id);
+//   }
+//
+//   std::ifstream file(options_.match_list_path);
+//   CHECK(file.is_open()) << options_.match_list_path;
+//
+//   std::string line;
+//   std::vector<std::pair<image_t, image_t>> image_pairs;
+//   while (std::getline(file, line)) {
+//     StringTrim(&line);
+//
+//     if (line.empty() || line[0] == '#') {
+//       continue;
+//     }
+//
+//     std::stringstream line_stream(line);
+//
+//     std::string image_name1;
+//     std::string image_name2;
+//
+//     std::getline(line_stream, image_name1, ' ');
+//     StringTrim(&image_name1);
+//     std::getline(line_stream, image_name2, ' ');
+//     StringTrim(&image_name2);
+//
+//     if (image_name_to_image_id.count(image_name1) == 0) {
+//       std::cerr << "ERROR: Image " << image_name1 << " does not exist."
+//                 << std::endl;
+//       continue;
+//     }
+//     if (image_name_to_image_id.count(image_name2) == 0) {
+//       std::cerr << "ERROR: Image " << image_name2 << " does not exist."
+//                 << std::endl;
+//       continue;
+//     }
+//
+//     image_pairs.emplace_back(image_name_to_image_id.at(image_name1),
+//                              image_name_to_image_id.at(image_name2));
+//   }
+//
+//   //////////////////////////////////////////////////////////////////////////////
+//   // Feature matching
+//   //////////////////////////////////////////////////////////////////////////////
+//
+//   const size_t num_match_blocks = image_pairs.size() / options_.block_size + 1;
+//   std::vector<std::pair<image_t, image_t>> block_image_pairs;
+//   block_image_pairs.reserve(options_.block_size);
+//
+//   for (size_t i = 0; i < image_pairs.size(); i += options_.block_size) {
+//     if (IsStopped()) {
+//       GetTimer().PrintMinutes();
+//       return;
+//     }
+//
+//     Timer timer;
+//     timer.Start();
+//
+//     std::cout << StringPrintf("Matching block [%d/%d]",
+//                               i / options_.block_size + 1, num_match_blocks)
+//               << std::flush;
+//
+//     const size_t block_end = i + options_.block_size <= image_pairs.size()
+//                                  ? i + options_.block_size
+//                                  : image_pairs.size();
+//     std::vector<std::pair<image_t, image_t>> block_image_pairs;
+//     block_image_pairs.reserve(options_.block_size);
+//     for (size_t j = i; j < block_end; ++j) {
+//       block_image_pairs.push_back(image_pairs[j]);
+//     }
+//
+//     matcher_.Match(block_image_pairs);
+//
+//     PrintElapsedTime(timer);
+//   }
+//
+//   GetTimer().PrintMinutes();
+// }
 
 }  // namespace colmap

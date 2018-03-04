@@ -33,6 +33,7 @@ Thread::Thread()
 }
 
 void Thread::Start() {
+  //std::cout << "KEVIN DEBUG: Thread::Start()!" << std::endl;
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK(!started_ || finished_);
   Wait();

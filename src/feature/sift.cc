@@ -776,12 +776,109 @@ void LoadSiftFeaturesFromTextFile(const std::string& path,
   }
 }
 
+void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
+                          const FeatureKeypoints& keypoints1,
+                          const FeatureKeypoints& keypoints2,
+                          const FeatureDescriptors& descriptors1,
+                          const FeatureDescriptors& descriptors2,
+                          const FeatureMatches& quantization_map,
+                          FeatureMatches* matches) {
+  CHECK(match_options.Check());
+  CHECK_NOTNULL(matches);
+
+  // const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+  //     nullptr, nullptr, descriptors1, descriptors2, nullptr);
+  //
+  // FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+  //                 match_options.cross_check, matches);
+  // std::cout << "#### Enter OFGuidedMatchSiftFeaturesCPU()" << std::endl;
+  // std::cout << "keypoints1.size() = " << keypoints1.size() << std::endl;
+
+  size_t image_scale_factor = 24;
+  size_t DeMoN_OF_Height = 48;
+  size_t DeMoN_OF_Width = 64;
+  for(size_t cnt=0;cnt<quantization_map.size(); cnt++)
+  {
+      // std::cout << "quantization_map[cnt] = " << quantization_map[cnt].point2D_idx1 << "," << quantization_map[cnt].point2D_idx2 << std::endl;
+      // FeatureDescriptors tmpDescriptors1;
+      // std::cout << "tmpDescriptors1 is created!" << std::endl;
+      // // std::vector<uint8_t> tmpDescriptors1Vector;
+      std::vector<size_t> tmpIndices1;
+      // std::cout << "tmpIndices1 is created!" << std::endl;
+
+      for(size_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+      // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
+      {
+          // std::cout << "loop kp1Idx ^" << std::endl;
+          size_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+          // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
+          if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+          {
+              // std::cout << "tmpQuantizationIdx1 = quantization_map[cnt].point2D_idx1, they are " << tmpQuantizationIdx1 << std::endl;
+              // // tmpDescriptors1Vector.push_back(descriptors1.block<1,128>(kp1Idx,0));
+              // tmpDescriptors1 << descriptors1.block<1,128>(kp1Idx,0);
+              // std::cout << "tmpDescriptors1 = " << tmpDescriptors1 << std::endl;
+              tmpIndices1.push_back(kp1Idx);
+          }
+          // std::cout << "end of loop kp1Idx ^" << std::endl;
+      }
+      // std::cout << "end of loop kp1Idx ^" << std::endl;
+      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+      for(size_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+      {
+          tmpDescriptors1.resize(kp1Idx+1, 128);
+          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+      }
+      // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+
+
+      // FeatureDescriptors tmpDescriptors2;
+      std::vector<size_t> tmpIndices2;
+      for(size_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+      {
+          size_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+          if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+          {
+              // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+              tmpIndices2.push_back(kp2Idx);
+          }
+      }
+      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+      for(size_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+      {
+          tmpDescriptors2.resize(kp2Idx+1, 128);
+          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+      }
+      // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+
+      const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+          nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+      // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+
+      FeatureMatches tmpQuantizationMatches;
+      FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+                      match_options.cross_check, &tmpQuantizationMatches);
+      // std::cout << "FindBestMatches is done!" << std::endl;
+
+      for(size_t resultCnt=0;resultCnt<tmpQuantizationMatches.size(); resultCnt++)
+      {
+          FeatureMatch ConvertedMatch;
+          ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches[resultCnt].point2D_idx1];
+          ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches[resultCnt].point2D_idx2];
+          matches->push_back(ConvertedMatch);
+      }
+      // std::cout << "index conversion is done!" << std::endl;
+  }
+
+}
+
 void MatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
                           const FeatureDescriptors& descriptors1,
                           const FeatureDescriptors& descriptors2,
                           FeatureMatches* matches) {
   CHECK(match_options.Check());
   CHECK_NOTNULL(matches);
+  // std::cout << "#### Enter MatchSiftFeaturesCPU()" << std::endl;
 
   const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
       nullptr, nullptr, descriptors1, descriptors2, nullptr);

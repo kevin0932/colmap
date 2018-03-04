@@ -126,6 +126,17 @@ struct ImagePairsMatchingOptions {
   bool Check() const;
 };
 
+struct OFGuidedImagePairsMatchingOptions {
+  // Number of image pairs to match in one batch.
+  //int block_size = 100;
+  int block_size = 1;
+
+  // Path to the file with the pair matches and predicted optical flow quantization mapping.
+  std::string match_list_path = "";
+  size_t image_scale_factor = 24;
+  bool Check() const;
+};
+
 struct FeaturePairsMatchingOptions {
   // Whether to geometrically verify the given matches.
   bool verify_matches = true;
@@ -143,6 +154,9 @@ struct FeatureMatcherData {
   image_t image_id2 = kInvalidImageId;
   FeatureMatches matches;
   TwoViewGeometry two_view_geometry;
+  // added for matching quantization when it is guided by optical-flow
+  // std::vector<FeatureMatches> quantization_maps;
+  FeatureMatches quantization_map;
 };
 
 }  // namespace internal
@@ -254,6 +268,23 @@ class GuidedSiftCPUFeatureMatcher : public FeatureMatcherThread {
   JobQueue<Output>* output_queue_;
 };
 
+class OFGuidedSiftCPUFeatureMatcher : public FeatureMatcherThread {
+ public:
+  typedef internal::FeatureMatcherData Input;
+  typedef internal::FeatureMatcherData Output;
+
+  OFGuidedSiftCPUFeatureMatcher(const SiftMatchingOptions& options,
+                              FeatureMatcherCache* cache,
+                              JobQueue<Input>* input_queue,
+                              JobQueue<Output>* output_queue);
+
+ private:
+  void Run() override;
+
+  JobQueue<Input>* input_queue_;
+  JobQueue<Output>* output_queue_;
+};
+
 class GuidedSiftGPUFeatureMatcher : public FeatureMatcherThread {
  public:
   typedef internal::FeatureMatcherData Input;
@@ -319,6 +350,9 @@ class SiftFeatureMatcher {
 
   // Match one batch of multiple image pairs.
   void Match(const std::vector<std::pair<image_t, image_t>>& image_pairs);
+
+  // Optical-Flow-Guided Match one batch of multiple image pairs.
+  void OFGuidedMatch(const std::vector<std::pair<image_t, image_t>>& image_pairs, const std::vector<FeatureMatches>& quantization_maps);
 
  private:
   SiftMatchingOptions options_;
@@ -525,6 +559,34 @@ class FeaturePairsFeatureMatcher : public Thread {
   const SiftMatchingOptions match_options_;
   Database database_;
   FeatureMatcherCache cache_;
+};
+
+
+
+//////////////////////////////////////////////////////////////////
+// Match images manually specified in a list of image pairs.
+//
+// Read matches file with the following format:
+//
+//    image_name1 image_name2
+//    image_name1 image_name3
+//    image_name2 image_name3
+//    ...
+//
+class OFGuidedImagePairsFeatureMatcher : public Thread {
+ public:
+  OFGuidedImagePairsFeatureMatcher(const OFGuidedImagePairsMatchingOptions& options,
+                           const SiftMatchingOptions& match_options,
+                           const std::string& database_path);
+
+ private:
+  void Run() override;
+
+  const OFGuidedImagePairsMatchingOptions options_;
+  const SiftMatchingOptions match_options_;
+  Database database_;
+  FeatureMatcherCache cache_;
+  SiftFeatureMatcher matcher_;
 };
 
 }  // namespace colmap
