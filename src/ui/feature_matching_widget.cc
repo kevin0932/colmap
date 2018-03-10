@@ -83,6 +83,7 @@ class OFGuidedMatchingTab : public FeatureMatchingTab {
  private:
   std::string match_list_path_;
   size_t image_scale_factor_;
+  bool only_image_pairs_as_ref_;
   QComboBox* match_type_cb_;
 };
 
@@ -117,7 +118,7 @@ void FeatureMatchingTab::CreateGeneralOptions() {
   AddSpacer();
 
   AddOptionBool(&options_->sift_matching->optical_flow_guided_matching, "optical_flow_guided_matching");
-
+  AddOptionBool(&options_->sift_matching->only_image_pairs_as_ref, "only_image_pairs_as_ref");
   AddSpacer();
 
   QPushButton* run_button = new QPushButton(tr("Run"), this);
@@ -298,8 +299,9 @@ OFGuidedMatchingTab::OFGuidedMatchingTab(QWidget* parent, OptionManager* options
   grid_layout_->addWidget(match_type_cb_, grid_layout_->rowCount(), 1);
 
   AddOptionFilePath(&match_list_path_, "match_list_path");
-
+  // AddOptionBool(&only_image_pairs_as_ref_, "only_image_pairs_as_ref is enabled or not");
   // AddOptionInt(&image_scale_factor_, "image_scale_factor", -1);
+  AddSpacer();
   CreateGeneralOptions();
 }
 
@@ -315,7 +317,8 @@ void OFGuidedMatchingTab::Run() {
 
   OFGuidedImagePairsMatchingOptions matcher_options;
   matcher_options.match_list_path = match_list_path_;
-  matcher_options.image_scale_factor = image_scale_factor_;
+  // matcher_options.image_scale_factor = image_scale_factor_;
+  // matcher_options.only_image_pairs_as_ref = only_image_pairs_as_ref_;
   matcher = new OFGuidedImagePairsFeatureMatcher( matcher_options,
                         *options_->sift_matching, *options_->database_path);
 

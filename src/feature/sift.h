@@ -150,6 +150,7 @@ struct SiftMatchingOptions {
 
   // Whether to perform guided matching based on predicted optical flow
   bool optical_flow_guided_matching = false;
+  bool only_image_pairs_as_ref = false;
 };
 
 // Extract SIFT features for the given image on the CPU. Only extract
@@ -205,6 +206,14 @@ void MatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
                           FeatureMatches* matches);
 // Match the given SIFT features on the CPU in given search regions.
 void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const FeatureMatches& quantization_map,
+                        FeatureMatches* matches);
+// Match the given SIFT features on the CPU in given search regions (pixel_perfect_case).
+void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& match_options,
                         const FeatureKeypoints& keypoints1,
                         const FeatureKeypoints& keypoints2,
                         const FeatureDescriptors& descriptors1,

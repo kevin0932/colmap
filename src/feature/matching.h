@@ -134,6 +134,7 @@ struct OFGuidedImagePairsMatchingOptions {
   // Path to the file with the pair matches and predicted optical flow quantization mapping.
   std::string match_list_path = "";
   size_t image_scale_factor = 24;
+  // bool only_image_pairs_as_ref = false;
   bool Check() const;
 };
 
@@ -576,6 +577,22 @@ class FeaturePairsFeatureMatcher : public Thread {
 class OFGuidedImagePairsFeatureMatcher : public Thread {
  public:
   OFGuidedImagePairsFeatureMatcher(const OFGuidedImagePairsMatchingOptions& options,
+                           const SiftMatchingOptions& match_options,
+                           const std::string& database_path);
+
+ private:
+  void Run() override;
+
+  const OFGuidedImagePairsMatchingOptions options_;
+  const SiftMatchingOptions match_options_;
+  Database database_;
+  FeatureMatcherCache cache_;
+  SiftFeatureMatcher matcher_;
+};
+
+class ReferenceImagePairsFeatureMatcher : public Thread {
+ public:
+  ReferenceImagePairsFeatureMatcher(const OFGuidedImagePairsMatchingOptions& options,
                            const SiftMatchingOptions& match_options,
                            const std::string& database_path);
 
