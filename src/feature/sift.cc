@@ -798,8 +798,10 @@ void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
   // std::cout << "keypoints1.size() = " << keypoints1.size() << std::endl;
 
   // point2D_t image_scale_factor = 24;
-  point2D_t image_scale_factor = 4;
+  // point2D_t image_scale_factor = 4;
+  // point2D_t image_scale_factor = 2;
   // point2D_t image_scale_factor = 16;
+  point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
   point2D_t DeMoN_OF_Height = 48;
   point2D_t DeMoN_OF_Width = 64;
   for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
@@ -821,7 +823,7 @@ void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
           float quantizationCenter_y_1 = floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width) * image_scale_factor;
           float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width)*DeMoN_OF_Width);
           // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
-          if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2))<=36)
+          if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2))<=400)
           // if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
           {
               // std::cout << "tmpQuantizationIdx1 = quantization_map[cnt].point2D_idx1, they are " << tmpQuantizationIdx1 << std::endl;
@@ -851,7 +853,7 @@ void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
           point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
           float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width) * image_scale_factor;
           float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width)*DeMoN_OF_Width);
-          if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=36)
+          if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=400)
           // if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
           {
               // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
@@ -865,6 +867,14 @@ void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
           tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
       }
       // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+
+      // remember to normalize the descriptors so that colmap threshold params can be used!
+      Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+      Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+      desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+      desc1 = L1RootNormalizeFeatureDescriptors(desc2);
+      // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
+      // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
 
       const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
           nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
@@ -906,7 +916,8 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
   // std::cout << "keypoints1.size() = " << keypoints1.size() << std::endl;
 
   // point2D_t image_scale_factor = 24;
-  point2D_t image_scale_factor = 4;
+  // point2D_t image_scale_factor = 32; // 24; // 12; // 48; // 16; //4;
+  point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
   point2D_t DeMoN_OF_Height = 48;
   point2D_t DeMoN_OF_Width = 64;
   for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
@@ -1155,6 +1166,140 @@ void MatchSiftFeaturesGPU(const SiftMatchingOptions& match_options,
     CHECK_LE(num_matches, matches->size());
     matches->resize(num_matches);
   }
+}
+
+void OFGuidedMatchSiftFeaturesGPU(const SiftMatchingOptions& match_options,
+                          const FeatureKeypoints* keypoints1,
+                          const FeatureKeypoints* keypoints2,
+                          const FeatureDescriptors* descriptors1,
+                          const FeatureDescriptors* descriptors2,
+                          const FeatureMatches& quantization_map,
+                          SiftMatchGPU* sift_match_gpu,
+                          FeatureMatches* matches) {
+  CHECK(match_options.Check());
+  CHECK_NOTNULL(sift_match_gpu);
+  CHECK_NOTNULL(matches);
+
+  FeatureKeypoints Objectkeypoints1 = *keypoints1;
+  FeatureKeypoints Objectkeypoints2 = *keypoints2;
+  // std::cout << "Objectkeypoints1.size() = " << Objectkeypoints1.size() << std::endl;
+  matches->resize(static_cast<size_t>(match_options.max_num_matches));
+
+  point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t DeMoN_OF_Height = 48;
+  point2D_t DeMoN_OF_Width = 64;
+  for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  {
+      std::vector<point2D_t> tmpIndices1;
+      // std::cout << "tmpIndices1 is created!" << std::endl;
+
+      for(point2D_t kp1Idx=0;kp1Idx<Objectkeypoints1.size(); kp1Idx++)
+      {
+          // std::cout << "loop kp1Idx ^" << std::endl;
+          point2D_t tmpQuantizationIdx1 = (Objectkeypoints1[kp1Idx].x / image_scale_factor) + DeMoN_OF_Width * (Objectkeypoints1[kp1Idx].y / image_scale_factor);
+          // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
+          if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+          {
+              tmpIndices1.push_back(kp1Idx);
+          }
+          // std::cout << "end of loop kp1Idx ^" << std::endl;
+      }
+      // std::cout << "end of loop kp1Idx ^" << std::endl;
+      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+      for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+      {
+          tmpDescriptors1.resize(kp1Idx+1, 128);
+          tmpDescriptors1.block<1,128>(kp1Idx,0) = (*descriptors1).block<1,128>(kp1Idx,0);
+      }
+      // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+
+      std::vector<point2D_t> tmpIndices2;
+      for(point2D_t kp2Idx=0;kp2Idx<Objectkeypoints2.size(); kp2Idx++)
+      {
+          point2D_t tmpQuantizationIdx2 = (Objectkeypoints1[kp2Idx].x / image_scale_factor) + DeMoN_OF_Width * (Objectkeypoints1[kp2Idx].y / image_scale_factor);
+          if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+          {
+              tmpIndices2.push_back(kp2Idx);
+          }
+      }
+      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+      for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+      {
+          tmpDescriptors2.resize(kp2Idx+1, 128);
+          tmpDescriptors2.block<1,128>(kp2Idx,0) = (*descriptors2).block<1,128>(kp2Idx,0);
+      }
+      // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+
+      // const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+      //     nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+      // // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+      //
+      // FeatureMatches tmpQuantizationMatches;
+      // FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+      //                 match_options.cross_check, &tmpQuantizationMatches);
+      // // std::cout << "FindBestMatches is done!" << std::endl;
+
+      // if (&tmpDescriptors1 != nullptr) {
+      if (tmpDescriptors1.size()>0) {
+        CHECK_EQ(tmpDescriptors1.cols(), 128);
+        WarnIfMaxNumMatchesReachedGPU(*sift_match_gpu, tmpDescriptors1);
+        sift_match_gpu->SetDescriptors(0, tmpDescriptors1.rows(),
+                                       tmpDescriptors1.data());
+      } else {
+          continue;
+      }
+
+      // if (&tmpDescriptors2 != nullptr) {
+      if (tmpDescriptors2.size()>0) {
+        CHECK_EQ(tmpDescriptors2.cols(), 128);
+        WarnIfMaxNumMatchesReachedGPU(*sift_match_gpu, tmpDescriptors2);
+        sift_match_gpu->SetDescriptors(1, tmpDescriptors2.rows(),
+                                       tmpDescriptors2.data());
+      } else {
+          continue;
+      }
+
+      // std::cout << "+++++setting descriptors is done!" << std::endl;
+      FeatureMatches tmpQuantizationMatches;
+      tmpQuantizationMatches.resize(static_cast<size_t>(match_options.max_num_matches));
+      std::cout << "///// resizing matches is done!" << std::endl;
+      std::cout << "^^^ tmpQuantizationMatches.data() = " << tmpQuantizationMatches.data() << std::endl;
+
+      // const int num_matches = 0;
+      const int num_matches = sift_match_gpu->GetSiftMatch(
+          match_options.max_num_matches,
+          // reinterpret_cast<uint32_t(*)[2]>(tmpQuantizationMatches.data()),
+          reinterpret_cast<uint32_t(*)[2]>(&(tmpQuantizationMatches[0])),
+          // reinterpret_cast<uint32_t(*)[2]>(matches->data()),
+          static_cast<float>(match_options.max_distance),
+          static_cast<float>(match_options.max_ratio), match_options.cross_check);
+
+      std::cout << "<<<<< GetSiftMatch is done!" << std::endl;
+      // std::cout << "<<<<< GetSiftMatch is done! and num_matches = " << num_matches << std::endl;
+
+      if (num_matches < 0) {
+        std::cerr << "ERROR: Feature matching failed. This is probably caused by "
+                     "insufficient GPU memory. Consider reducing the maximum "
+                     "number of features and/or matches."
+                  << std::endl;
+        tmpQuantizationMatches.clear();
+      } else {
+        CHECK_LE(num_matches, tmpQuantizationMatches.size());
+        tmpQuantizationMatches.resize(num_matches);
+      }
+      std::cout << ">>>>>>> resizing again to make the size fit is done!" << std::endl;
+
+      for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches.size(); resultCnt++)
+      {
+          FeatureMatch ConvertedMatch;
+          ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches[resultCnt].point2D_idx1];
+          ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches[resultCnt].point2D_idx2];
+          matches->push_back(ConvertedMatch);
+      }
+      std::cout << "@@@@<<<<< conversion is done!" << std::endl;
+      // std::cout << "index conversion is done!" << std::endl;
+  }
+
 }
 
 void MatchGuidedSiftFeaturesGPU(const SiftMatchingOptions& match_options,

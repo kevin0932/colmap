@@ -485,11 +485,29 @@ void OFGuidedSiftCPUFeatureMatcher::Run() {
 
       const FeatureKeypoints keypoints1 = cache_->GetKeypoints(data.image_id1);
       const FeatureKeypoints keypoints2 = cache_->GetKeypoints(data.image_id2);
-      const FeatureDescriptors descriptors1 =
+      // const FeatureDescriptors descriptors1 =
+      //     cache_->GetDescriptors(data.image_id1);
+      // const FeatureDescriptors descriptors2 =
+      //     cache_->GetDescriptors(data.image_id2);
+      FeatureDescriptors descriptors1 =
           cache_->GetDescriptors(data.image_id1);
-      const FeatureDescriptors descriptors2 =
+      FeatureDescriptors descriptors2 =
           cache_->GetDescriptors(data.image_id2);
-      OFGuidedMatchSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+
+      // if (options.normalization ==
+      //     SiftExtractionOptions::Normalization::L2) {
+      //   desc = L2NormalizeFeatureDescriptors(desc);
+      // } else if (options.normalization ==
+      //            SiftExtractionOptions::Normalization::L1_ROOT) {
+      //   desc = L1RootNormalizeFeatureDescriptors(desc);
+      // } else {
+      //   LOG(FATAL) << "Normalization type not supported";
+      // }
+      
+
+      // OFGuidedMatchSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+
       // MatchSiftFeaturesCPU(options_, descriptors1, descriptors2, &data.matches);
       // MatchGuidedSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, &data.two_view_geometry);
       CHECK(output_queue_->Push(data));
@@ -498,6 +516,76 @@ void OFGuidedSiftCPUFeatureMatcher::Run() {
     }
   }
 }
+
+OFGuidedSiftGPUFeatureMatcher::OFGuidedSiftGPUFeatureMatcher(
+    const SiftMatchingOptions& options, FeatureMatcherCache* cache,
+    JobQueue<Input>* input_queue, JobQueue<Output>* output_queue)
+    : FeatureMatcherThread(options, cache),
+      input_queue_(input_queue),
+      output_queue_(output_queue) {
+  CHECK(options_.Check());
+
+  prev_uploaded_image_ids_[0] = kInvalidImageId;
+  prev_uploaded_image_ids_[1] = kInvalidImageId;
+
+#ifndef CUDA_ENABLED
+  opengl_context_.reset(new OpenGLContextManager());
+#endif
+}
+
+void OFGuidedSiftGPUFeatureMatcher::Run() {
+    std::cout << "******* OFGuidedSiftGPUFeatureMatcher::Run()" << std::endl;
+#ifndef CUDA_ENABLED
+  CHECK(opengl_context_);
+  opengl_context_->MakeCurrent();
+#endif
+
+  SiftMatchGPU sift_match_gpu;
+  if (!CreateSiftGPUMatcher(options_, &sift_match_gpu)) {
+    std::cout << "ERROR: SiftGPU not fully supported" << std::endl;
+    SignalInvalidSetup();
+    return;
+  }
+
+  SignalValidSetup();
+
+  while (true) {
+    if (IsStopped()) {
+      break;
+    }
+
+    const auto input_job = input_queue_->Pop();
+    if (input_job.IsValid()) {
+      auto data = input_job.Data();
+      const FeatureMatches quantization_map = data.quantization_map;
+      std::cout << "DEBUG: OFGuidedMatchSiftFeaturesGPU enter!" << std::endl;
+
+      // if (data.two_view_geometry.inlier_matches.size() <
+      //     static_cast<size_t>(options_.min_num_inliers)) {
+      //   CHECK(output_queue_->Push(data));
+      //   continue;
+      // }
+
+      const FeatureDescriptors* descriptors1_ptr;
+      const FeatureKeypoints* keypoints1_ptr;
+      GetFeatureData(0, data.image_id1, &keypoints1_ptr, &descriptors1_ptr);
+      const FeatureDescriptors* descriptors2_ptr;
+      const FeatureKeypoints* keypoints2_ptr;
+      GetFeatureData(1, data.image_id2, &keypoints2_ptr, &descriptors2_ptr);
+
+      // MatchGuidedSiftFeaturesGPU(options_, keypoints1_ptr, keypoints2_ptr,
+      //                            descriptors1_ptr, descriptors2_ptr,
+      //                            &sift_match_gpu, &data.two_view_geometry);
+      std::cout << "DEBUG: OFGuidedMatchSiftFeaturesGPU is to be called!" << std::endl;
+      OFGuidedMatchSiftFeaturesGPU(options_, keypoints1_ptr, keypoints2_ptr, descriptors1_ptr, descriptors2_ptr, quantization_map,
+                           &sift_match_gpu, &data.matches);
+
+      CHECK(output_queue_->Push(data));
+    }
+  }
+}
+
+
 
 GuidedSiftGPUFeatureMatcher::GuidedSiftGPUFeatureMatcher(
     const SiftMatchingOptions& options, FeatureMatcherCache* cache,
@@ -562,6 +650,24 @@ void GuidedSiftGPUFeatureMatcher::Run() {
 }
 
 void GuidedSiftGPUFeatureMatcher::GetFeatureData(
+    const int index, const image_t image_id,
+    const FeatureKeypoints** keypoints_ptr,
+    const FeatureDescriptors** descriptors_ptr) {
+  CHECK_GE(index, 0);
+  CHECK_LE(index, 1);
+  if (prev_uploaded_image_ids_[index] == image_id) {
+    *keypoints_ptr = nullptr;
+    *descriptors_ptr = nullptr;
+  } else {
+    prev_uploaded_keypoints_[index] = cache_->GetKeypoints(image_id);
+    prev_uploaded_descriptors_[index] = cache_->GetDescriptors(image_id);
+    *keypoints_ptr = &prev_uploaded_keypoints_[index];
+    *descriptors_ptr = &prev_uploaded_descriptors_[index];
+    prev_uploaded_image_ids_[index] = image_id;
+  }
+}
+
+void OFGuidedSiftGPUFeatureMatcher::GetFeatureData(
     const int index, const image_t image_id,
     const FeatureKeypoints** keypoints_ptr,
     const FeatureDescriptors** descriptors_ptr) {
@@ -661,12 +767,19 @@ SiftFeatureMatcher::SiftFeatureMatcher(const SiftMatchingOptions& options,
   if (options_.optical_flow_guided_matching) {
       if (options_.use_gpu) {
         std::cout << "options_.use_gpu is set to true!" << std::endl;
-        //qDebug() << "options_.use_gpu is set to true!";
-        //QTextStream(stdout) << "~~~~options_.use_gpu is set to true!~~~~" << endl;
-        matchers_.reserve(num_threads);
-        for (int i = 0; i < num_threads; ++i) {
-          matchers_.emplace_back(new OFGuidedSiftCPUFeatureMatcher(
-              options_, cache, &matcher_queue_, &verifier_queue_));
+        // //qDebug() << "options_.use_gpu is set to true!";
+        // //QTextStream(stdout) << "~~~~options_.use_gpu is set to true!~~~~" << endl;
+        // matchers_.reserve(num_threads);
+        // for (int i = 0; i < num_threads; ++i) {
+        //   matchers_.emplace_back(new OFGuidedSiftCPUFeatureMatcher(
+        //       options_, cache, &matcher_queue_, &verifier_queue_));
+        // }
+        auto gpu_options = options_;
+        matchers_.reserve(gpu_indices.size());
+        for (const auto& gpu_index : gpu_indices) {
+          gpu_options.gpu_index = std::to_string(gpu_index);
+          matchers_.emplace_back(new OFGuidedSiftGPUFeatureMatcher(
+              gpu_options, cache, &matcher_queue_, &verifier_queue_));
         }
       } else {
         std::cout << "options_.use_gpu is set to false!" << std::endl;

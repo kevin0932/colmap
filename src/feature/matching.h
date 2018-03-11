@@ -314,6 +314,35 @@ class GuidedSiftGPUFeatureMatcher : public FeatureMatcherThread {
   std::array<FeatureDescriptors, 2> prev_uploaded_descriptors_;
 };
 
+class OFGuidedSiftGPUFeatureMatcher : public FeatureMatcherThread {
+ public:
+  typedef internal::FeatureMatcherData Input;
+  typedef internal::FeatureMatcherData Output;
+
+  OFGuidedSiftGPUFeatureMatcher(const SiftMatchingOptions& options,
+                              FeatureMatcherCache* cache,
+                              JobQueue<Input>* input_queue,
+                              JobQueue<Output>* output_queue);
+
+ private:
+  void Run() override;
+
+  void GetFeatureData(const int index, const image_t image_id,
+                      const FeatureKeypoints** keypoints_ptr,
+                      const FeatureDescriptors** descriptors_ptr);
+
+  JobQueue<Input>* input_queue_;
+  JobQueue<Output>* output_queue_;
+
+  std::unique_ptr<OpenGLContextManager> opengl_context_;
+
+  // The previously uploaded images to the GPU.
+  std::array<image_t, 2> prev_uploaded_image_ids_;
+  std::array<FeatureKeypoints, 2> prev_uploaded_keypoints_;
+  std::array<FeatureDescriptors, 2> prev_uploaded_descriptors_;
+};
+
+
 class TwoViewGeometryVerifier : public Thread {
  public:
   typedef internal::FeatureMatcherData Input;

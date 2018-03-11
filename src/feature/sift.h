@@ -151,6 +151,8 @@ struct SiftMatchingOptions {
   // Whether to perform guided matching based on predicted optical flow
   bool optical_flow_guided_matching = false;
   bool only_image_pairs_as_ref = false;
+  // image scale factor to match the low-resolution optical-flow DeMoN_prediction_to_h5
+  int image_scale_factor = 1;
 };
 
 // Extract SIFT features for the given image on the CPU. Only extract
@@ -243,6 +245,14 @@ void MatchSiftFeaturesGPU(const SiftMatchingOptions& match_options,
                           const FeatureDescriptors* descriptors2,
                           SiftMatchGPU* sift_match_gpu,
                           FeatureMatches* matches);
+void OFGuidedMatchSiftFeaturesGPU(const SiftMatchingOptions& match_options,
+                              const FeatureKeypoints* keypoints1,
+                              const FeatureKeypoints* keypoints2,
+                              const FeatureDescriptors* descriptors1,
+                              const FeatureDescriptors* descriptors2,
+                              const FeatureMatches& quantization_map,
+                              SiftMatchGPU* sift_match_gpu,
+                              FeatureMatches* matches);
 void MatchGuidedSiftFeaturesGPU(const SiftMatchingOptions& match_options,
                                 const FeatureKeypoints* keypoints1,
                                 const FeatureKeypoints* keypoints2,

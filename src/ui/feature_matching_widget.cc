@@ -121,6 +121,8 @@ void FeatureMatchingTab::CreateGeneralOptions() {
   AddOptionBool(&options_->sift_matching->only_image_pairs_as_ref, "only_image_pairs_as_ref");
   AddSpacer();
 
+  AddOptionInt(&options_->sift_matching->image_scale_factor, "image_scale_factor");
+
   QPushButton* run_button = new QPushButton(tr("Run"), this);
   grid_layout_->addWidget(run_button, grid_layout_->rowCount(), 1);
   connect(run_button, &QPushButton::released, this, &FeatureMatchingTab::Run);
