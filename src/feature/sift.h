@@ -206,6 +206,11 @@ void MatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
                           const FeatureDescriptors& descriptors1,
                           const FeatureDescriptors& descriptors2,
                           FeatureMatches* matches);
+void MatchSiftFeaturesCPU_Normalize(const SiftMatchingOptions& match_options,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        FeatureMatches* matches);
+
 // Match the given SIFT features on the CPU in given search regions.
 void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
                         const FeatureKeypoints& keypoints1,

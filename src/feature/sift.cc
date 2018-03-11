@@ -872,7 +872,7 @@ void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
       Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
       Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
       desc1 = L1RootNormalizeFeatureDescriptors(desc1);
-      desc1 = L1RootNormalizeFeatureDescriptors(desc2);
+      desc2 = L1RootNormalizeFeatureDescriptors(desc2);
       // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
       // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
 
@@ -978,6 +978,14 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
       }
       // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
+      // remember to normalize the descriptors so that colmap threshold params can be used!
+      Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+      Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+      desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+      desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+      // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
+      // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
+
       const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
           nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
       // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
@@ -1006,9 +1014,34 @@ void MatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
   CHECK(match_options.Check());
   CHECK_NOTNULL(matches);
   // std::cout << "#### Enter MatchSiftFeaturesCPU()" << std::endl;
+  // // remember to normalize the descriptors so that colmap threshold params can be used!
+  // Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+  // Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+  // desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+  // desc2 = L1RootNormalizeFeatureDescriptors(desc2);
 
   const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
       nullptr, nullptr, descriptors1, descriptors2, nullptr);
+
+  FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+                  match_options.cross_check, matches);
+}
+
+void MatchSiftFeaturesCPU_Normalize(const SiftMatchingOptions& match_options,
+                          const FeatureDescriptors& descriptors1,
+                          const FeatureDescriptors& descriptors2,
+                          FeatureMatches* matches) {
+  CHECK(match_options.Check());
+  CHECK_NOTNULL(matches);
+  std::cout << "#### Enter MatchSiftFeaturesCPU_Normalize()" << std::endl;
+  // remember to normalize the descriptors so that colmap threshold params can be used!
+  Eigen::MatrixXf desc1 = descriptors1.cast <float> ();
+  Eigen::MatrixXf desc2 = descriptors2.cast <float> ();
+  desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+  desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+
+  const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+      nullptr, nullptr, desc1, desc2, nullptr);
 
   FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
                   match_options.cross_check, matches);
