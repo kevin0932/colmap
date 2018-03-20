@@ -24,6 +24,7 @@ import io
 # import scipy
 import scipy.io as spio
 import math
+from sklearn.preprocessing import normalize
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -132,10 +133,20 @@ def main():
             descriptorNum = rowDes[1]
             descriptorDim = rowDes[2]
             descriptors = np.fromstring(rowDes[3],dtype=np.uint8).reshape(-1, 128)
-            print(image_id, ", ", image_name, ", ", descriptorNum, ", ",descriptorDim, ", ", descriptors.shape)
+            print(image_id, ", ", image_name, ", ", descriptorNum, ", ",descriptorDim, ", ", descriptors.shape, ", ", np.linalg.norm(descriptors[0,:]), ", ", np.linalg.norm(descriptors[1,:]), ", ", np.linalg.norm(descriptors[2,:]), ", ", np.linalg.norm(descriptors[3,:]))
         cursorDescriptors.execute('''UPDATE descriptors SET rows = ? WHERE image_id = ?''', (descriptordata.shape[0], image_id))
         cursorDescriptors.execute('''UPDATE descriptors SET cols = ? WHERE image_id = ?''', (descriptordata.shape[1], image_id))
         # dummydata = np.zeros((2,128), dtype=np.float32)
+        # descriptordata = np.linalg.norm(descriptordata,axis=1)*512
+        #descriptordata = normalize(descriptordata, axis=1)*512
+        #l2norm = np.sqrt((descriptordata * descriptordata).sum(axis=1))
+        ### normalization is required or not?
+        if False:
+            l2norm = np.linalg.norm(descriptordata, axis=1)
+            print("l2norm.shape = ", l2norm.shape)
+            tmp = descriptordata.astype(np.float32) / l2norm.reshape(descriptordata.shape[0],1)
+            tmp = tmp * (np.ones([descriptordata.shape[0],1])*512)
+            descriptordata = (np.round(tmp)).astype(np.uint8)
         cursorDescriptors.execute('''UPDATE descriptors SET data = ? WHERE image_id = ?''', (descriptordata.tostring(), image_id))
         cursorDescriptors.execute("SELECT * FROM descriptors WHERE image_id=?;", (image_id,))
         for rowDes in cursorDescriptors:
@@ -143,8 +154,11 @@ def main():
             descriptorNum = rowDes[1]
             descriptorDim = rowDes[2]
             descriptors = np.fromstring(rowDes[3],dtype=np.uint8).reshape(-1, 128)
-            print(image_id, ", ", image_name, ", ", descriptorNum, ", ",descriptorDim, ", ", descriptors.shape)
-
+            # print(image_id, ", ", image_name, ", ", descriptorNum, ", ",descriptorDim, ", ", descriptors.shape)
+            print(image_id, ", ", image_name, ", ", descriptorNum, ", ",descriptorDim, ", ", descriptors.shape, ", ", np.linalg.norm(descriptors[0,:]), ", ", np.linalg.norm(descriptors[1,:]), ", ", np.linalg.norm(descriptors[2,:]), ", ", np.linalg.norm(descriptors[3,:]))
+            print("np.linalg.norm(descriptors,axis=1) = ", np.linalg.norm(descriptors,axis=1))
+            print("np.mean(np.linalg.norm(descriptors,axis=1)) = ", np.mean(np.linalg.norm(descriptors,axis=1)))
+            print("np.std(np.linalg.norm(descriptors,axis=1)) = ", np.std(np.linalg.norm(descriptors,axis=1)))
 
         connection.commit()
         # break

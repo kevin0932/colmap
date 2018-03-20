@@ -463,6 +463,11 @@ ImageTab::ImageTab(QWidget* parent, CameraTab* camera_tab,
           &ImageTab::ShowMatches);
   grid->addWidget(show_matches_button, 0, 4, Qt::AlignRight);
 
+  QPushButton* show_OF_button = new QPushButton(tr("Show OF guidance matches"), this);
+  connect(show_OF_button, &QPushButton::released, this,
+          &ImageTab::ShowMatches);
+  grid->addWidget(show_OF_button, 0, 5, Qt::AlignRight);
+
   table_widget_ = new QTableWidget(this);
   table_widget_->setColumnCount(10);
 

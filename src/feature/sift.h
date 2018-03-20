@@ -151,8 +151,12 @@ struct SiftMatchingOptions {
   // Whether to perform guided matching based on predicted optical flow
   bool optical_flow_guided_matching = false;
   bool only_image_pairs_as_ref = false;
+  bool MatchingByPixel = false;
+  bool ManualCrossCheck = false;
   // image scale factor to match the low-resolution optical-flow DeMoN_prediction_to_h5
   int image_scale_factor = 1;
+  int OF_scale_factor = 1;
+  double uncertainty_radius = 16;
 };
 
 // Extract SIFT features for the given image on the CPU. Only extract
@@ -227,7 +231,27 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
                         const FeatureDescriptors& descriptors2,
                         const FeatureMatches& quantization_map,
                         FeatureMatches* matches);
-
+void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase_byPixel(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const FeatureMatches& quantization_map,
+                        FeatureMatches* matches);
+void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const FeatureMatches& quantization_map,
+                        FeatureMatches* matches);
+void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const FeatureMatches& quantization_map,
+                        FeatureMatches* matches);
 void MatchGuidedSiftFeaturesCPU(const SiftMatchingOptions& match_options,
                                 const FeatureKeypoints& keypoints1,
                                 const FeatureKeypoints& keypoints2,

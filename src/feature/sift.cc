@@ -907,6 +907,7 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
   CHECK(match_options.Check());
   CHECK_NOTNULL(matches);
 
+  double uncertainty_radius = match_options.uncertainty_radius;
   // const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
   //     nullptr, nullptr, descriptors1, descriptors2, nullptr);
   //
@@ -918,6 +919,7 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
   // point2D_t image_scale_factor = 24;
   // point2D_t image_scale_factor = 32; // 24; // 12; // 48; // 16; //4;
   point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t OF_scale_factor = match_options.OF_scale_factor;
   point2D_t DeMoN_OF_Height = 48;
   point2D_t DeMoN_OF_Width = 64;
   for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
@@ -934,10 +936,15 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
       for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
       // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
       {
-          // std::cout << "loop kp1Idx ^" << std::endl;
-          point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
-          // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
-          if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+          // // std::cout << "loop kp1Idx ^" << std::endl;
+          // point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+          // // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
+          point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+          float quantizationCenter_y_1 = floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+          float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+          // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+          if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2))<=uncertainty_radius*uncertainty_radius)
+          // if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
           {
               // std::cout << "tmpQuantizationIdx1 = quantization_map[cnt].point2D_idx1, they are " << tmpQuantizationIdx1 << std::endl;
               // // tmpDescriptors1Vector.push_back(descriptors1.block<1,128>(kp1Idx,0));
@@ -963,8 +970,13 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
       std::vector<point2D_t> tmpIndices2;
       for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
       {
-          point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
-          if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+          // point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+          point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+          float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+          float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+          // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+          if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=uncertainty_radius*uncertainty_radius)
+          // if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
           {
               // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
               tmpIndices2.push_back(kp2Idx);
@@ -1007,6 +1019,849 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
 
 }
 
+void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& match_options,
+                          const FeatureKeypoints& keypoints1,
+                          const FeatureKeypoints& keypoints2,
+                          const FeatureDescriptors& descriptors1,
+                          const FeatureDescriptors& descriptors2,
+                          const FeatureMatches& quantization_map,
+                          FeatureMatches* matches) {
+  CHECK(match_options.Check());
+  CHECK_NOTNULL(matches);
+
+  double uncertainty_radius = match_options.uncertainty_radius;
+  point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t OF_scale_factor = match_options.OF_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t DeMoN_OF_Height = 48;
+  point2D_t DeMoN_OF_Width = 64;
+
+  int numQuantizationMapping = quantization_map.size();
+  std::unordered_map<point2D_t, point2D_t> mapping1to2;
+  std::unordered_map<point2D_t, point2D_t> mapping2to1;
+  for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  {
+      mapping1to2[quantization_map[cnt].point2D_idx1] = quantization_map[cnt].point2D_idx2;
+      mapping2to1[quantization_map[cnt].point2D_idx2] = quantization_map[cnt].point2D_idx1;
+  }
+  std::cout << "convert quantization map to unordered map successfully!" << std::endl;
+  // auto key_selector = [](auto pair){return pair.first;};
+  // std::vector<point2D_t> keys1to2(mapping1to2.size());
+  // std::vector<point2D_t> keys2to1(mapping2to1.size());
+  // std::transform(mapping1to2.begin(), mapping1to2.end(), keys1to2.begin(), key_selector);
+  // std::transform(mapping2to1.begin(), mapping2to1.end(), keys2to1.begin(), key_selector);
+
+  //for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  //{
+
+      for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+      // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
+      {
+          // std::cout << "image_scale_factor = " << image_scale_factor << "; OF_scale_factor = " << OF_scale_factor << std::endl;
+          // point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+          // float quantizationCenter_y_1 = floor(tmpQuantizationIdx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+          // float quantizationCenter_x_1 = image_scale_factor * (tmpQuantizationIdx1-floor(tmpQuantizationIdx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+          point2D_t tmpQuantizationIdx1 = 0;
+          point2D_t mappedQuantizationIdx2;
+          float retrieved_quantizationCenter_x_1;
+          float retrieved_quantizationCenter_y_1;
+          float tmpMinSquareDist = 10000.0;
+          bool NNflag = false;
+          // for(auto element : mapping1to2)
+          // for(point2D_t key12 : keys1to2)
+          for(std::unordered_map<point2D_t,point2D_t>::iterator it = mapping1to2.begin(); it != mapping1to2.end(); ++it)
+          {
+              point2D_t tmpIdx1 = it->first;
+              float quantizationCenter_y_1 = floor(tmpIdx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+              float quantizationCenter_x_1 = image_scale_factor * (tmpIdx1-floor(tmpIdx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+              float tmpSquareDist = (pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2));
+              if(tmpSquareDist<=tmpMinSquareDist)
+              {
+                  tmpQuantizationIdx1 = tmpIdx1;
+                  tmpMinSquareDist = tmpSquareDist;
+                  NNflag = true;
+                  mappedQuantizationIdx2 = it->second;
+                  retrieved_quantizationCenter_x_1 = quantizationCenter_x_1;
+                  retrieved_quantizationCenter_y_1 = quantizationCenter_y_1;
+              }
+          }
+          if(NNflag==false || tmpMinSquareDist>1*image_scale_factor)
+          {
+              // std::cout << "skip this kp1, no NN quantization center could be retrieved!" << std::endl;
+              continue;
+          }
+          // // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << ", before conversion tmpQuantizationIdx1 = " << (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor) << "; quanCenter = (" << quantizationCenter_x_1 << ", " << quantizationCenter_y_1 << ")" << "; keypoints1[kp1Idx] = (" << keypoints1[kp1Idx].x << ", " << keypoints1[kp1Idx].y << ")" << std::endl;
+          // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << "; quanCenter = (" << retrieved_quantizationCenter_x_1 << ", " << retrieved_quantizationCenter_y_1 << ")" << "; keypoints1[kp1Idx] = (" << keypoints1[kp1Idx].x << ", " << keypoints1[kp1Idx].y << ")" << std::endl;
+
+          // //int shareIdKp1Cnt = 0;
+          // // point2D_t mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
+          // point2D_t mappedQuantizationIdx2;
+          // if(mapping1to2.count(tmpQuantizationIdx1) > 0)
+          // {
+          //     mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
+          // } else {
+          //     continue;
+          // }
+
+          //if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+          //{
+              //shareIdKp1Cnt++;
+              std::vector<point2D_t> tmpIndices1;
+              // std::cout << "tmpIndices1 is created!" << std::endl;
+
+              tmpIndices1.push_back(kp1Idx);
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+              for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+              {
+                  tmpDescriptors1.resize(kp1Idx+1, 128);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+              }
+              // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+
+              // std::vector<point2D_t> tmpIndices2;
+              // for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+              // {
+              //     point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+              //     if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+              //     {
+              //         // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+              //         tmpIndices2.push_back(kp2Idx);
+              //     }
+              // }
+
+              std::vector<point2D_t> tmpIndices2;
+              for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+              {
+                  point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+                  float quantizationCenter_y_2 = floor(mappedQuantizationIdx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+                  float quantizationCenter_x_2 = image_scale_factor * (mappedQuantizationIdx2-floor(mappedQuantizationIdx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+                  // float quantizationCenter_x_2 = image_scale_factor * (mappedQuantizationIdx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+                  if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=uncertainty_radius*uncertainty_radius)
+                  // if(tmpQuantizationIdx2==mappedQuantizationIdx2)
+                  {
+                      // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+                      tmpIndices2.push_back(kp2Idx);
+                  }
+                  // std::cout << "mappedQuantizationIdx2 = " << mappedQuantizationIdx2 << "; @@@ quantizationCenter 2 = (" << quantizationCenter_x_2 << ", " << quantizationCenter_y_2 << ") ? quantizationCenter 2 before saving to float = (" << image_scale_factor * (mappedQuantizationIdx2-floor(mappedQuantizationIdx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor)) << ", " << floor(mappedQuantizationIdx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor << "), keypoints2[kp2Idx] = (" << keypoints2[kp2Idx].x << ", " << keypoints2[kp2Idx].y << ")" << std::endl;
+                  // std::cout << "## image_scale_factor = " << image_scale_factor << ", OF_scale_factor = "<< OF_scale_factor << ", tmpQuantizationIdx1 = "<< tmpQuantizationIdx1 << ", keypoints1[kp1Idx] = (" << keypoints1[kp1Idx].x << ", " << keypoints1[kp1Idx].y << "); mappedQuantizationIdx2 = " << mappedQuantizationIdx2 << "; @@@ quantizationCenter 2 = (" << quantizationCenter_x_2 << ", " << quantizationCenter_y_2 << "), keypoints2[kp2Idx] = (" << keypoints2[kp2Idx].x << ", " << keypoints2[kp2Idx].y << ")" << std::endl;
+              }
+              // std::cout << "~~ tmpIndices2.size() = " << tmpIndices2.size() << std::endl;
+
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+              for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+              {
+                  tmpDescriptors2.resize(kp2Idx+1, 128);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+              }
+              // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+
+              // // remember to normalize the descriptors so that colmap threshold params can be used!
+              // Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+              // Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+              // desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+              // desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+              // // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
+              // // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
+
+              const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+                  nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+              // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+
+              FeatureMatches tmpQuantizationMatches;
+              FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+                              match_options.cross_check, &tmpQuantizationMatches);
+              // std::cout << "FindBestMatches is done!" << std::endl;
+
+              for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches.size(); resultCnt++)
+              {
+                  FeatureMatch ConvertedMatch;
+                  ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches[resultCnt].point2D_idx1];
+                  ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches[resultCnt].point2D_idx2];
+                  matches->push_back(ConvertedMatch);
+              }
+              // std::cout << "index conversion is done!" << std::endl;
+
+          //}
+          // // std::cout << "end of loop kp1Idx ^" << std::endl;
+          // std::cout << "@@@ tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << ", @@@ mappedQuantizationIdx2 = " << mappedQuantizationIdx2 << std::endl;
+          // std::cout << "@@@ tmpIndices2.size() = " << tmpIndices2.size() << ", @@@ tmpDescriptors2.rows() = " << tmpDescriptors2.rows() << std::endl;
+      }
+      // std::cout << "end of loop kp1Idx ^" << std::endl;
+
+  //}
+  std::cout << "@@@ Final raw match number => matches->size() = " << matches->size() << std::endl;
+}
+
+// void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& match_options,
+//                           const FeatureKeypoints& keypoints1,
+//                           const FeatureKeypoints& keypoints2,
+//                           const FeatureDescriptors& descriptors1,
+//                           const FeatureDescriptors& descriptors2,
+//                           const FeatureMatches& quantization_map,
+//                           FeatureMatches* matches) {
+//   CHECK(match_options.Check());
+//   CHECK_NOTNULL(matches);
+//
+//   double uncertainty_radius = match_options.uncertainty_radius;
+//   point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+//   point2D_t OF_scale_factor = match_options.OF_scale_factor; // 24; // 12; // 48; // 16; //4;
+//   point2D_t DeMoN_OF_Height = 48;
+//   point2D_t DeMoN_OF_Width = 64;
+//   for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+//   {
+//
+//       for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+//       // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
+//       {
+//           // std::cout << "image_scale_factor = " << image_scale_factor << "; OF_scale_factor = " << OF_scale_factor << std::endl;
+//           point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+//           // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
+//           int shareIdKp1Cnt = 0;
+//           if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+//           {
+//               shareIdKp1Cnt++;
+//               std::vector<point2D_t> tmpIndices1;
+//               // std::cout << "tmpIndices1 is created!" << std::endl;
+//
+//               tmpIndices1.push_back(kp1Idx);
+//
+//               Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+//               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+//               {
+//                   tmpDescriptors1.resize(kp1Idx+1, 128);
+//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+//               }
+//               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+//
+//               // std::vector<point2D_t> tmpIndices2;
+//               // for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+//               // {
+//               //     point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+//               //     if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+//               //     {
+//               //         // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+//               //         tmpIndices2.push_back(kp2Idx);
+//               //     }
+//               // }
+//
+//               std::vector<point2D_t> tmpIndices2;
+//               // point2D_t tmpQuantizationIdx2 = (keypoints2[0].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[0].y / image_scale_factor);
+//               // float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+//               // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+//               // std::cout << "~~ quantizationCenter_x_2 = " << quantizationCenter_x_2 << "~~ quantizationCenter_y_2 = " << quantizationCenter_y_2 << "~~ tmpQuantizationIdx2 = " << tmpQuantizationIdx2 << std::endl;
+//               for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+//               {
+//                   point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+//                   float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+//                   float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+//                   // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+//                   if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=uncertainty_radius*uncertainty_radius)
+//                   // if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+//                   {
+//                       // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+//                       tmpIndices2.push_back(kp2Idx);
+//                   }
+//               }
+//               // std::cout << "~~ tmpIndices2.size() = " << tmpIndices2.size() << std::endl;
+//
+//
+//               Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+//               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+//               {
+//                   tmpDescriptors2.resize(kp2Idx+1, 128);
+//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+//               }
+//               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+//
+//               // // remember to normalize the descriptors so that colmap threshold params can be used!
+//               // Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+//               // Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+//               // desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+//               // desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+//               // // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
+//               // // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
+//
+//               const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+//                   nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+//               // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+//
+//               FeatureMatches tmpQuantizationMatches;
+//               FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+//                               match_options.cross_check, &tmpQuantizationMatches);
+//               // std::cout << "FindBestMatches is done!" << std::endl;
+//
+//               for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches.size(); resultCnt++)
+//               {
+//                   FeatureMatch ConvertedMatch;
+//                   ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches[resultCnt].point2D_idx1];
+//                   ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches[resultCnt].point2D_idx2];
+//                   matches->push_back(ConvertedMatch);
+//               }
+//               // std::cout << "index conversion is done!" << std::endl;
+//
+//           }
+//           // std::cout << "end of loop kp1Idx ^" << std::endl;
+//           // std::cout << "@@@ shareIdKp1Cnt = " << shareIdKp1Cnt << std::endl;
+//
+//       }
+//       // std::cout << "end of loop kp1Idx ^" << std::endl;
+//
+//   }
+//
+// }
+
+// void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
+//                           const FeatureKeypoints& keypoints1,
+//                           const FeatureKeypoints& keypoints2,
+//                           const FeatureDescriptors& descriptors1,
+//                           const FeatureDescriptors& descriptors2,
+//                           const FeatureMatches& quantization_map,
+//                           FeatureMatches* matches) {
+//   CHECK(match_options.Check());
+//   CHECK_NOTNULL(matches);
+//
+//   double uncertainty_radius = match_options.uncertainty_radius;
+//   point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+//   point2D_t OF_scale_factor = match_options.OF_scale_factor; // 24; // 12; // 48; // 16; //4;
+//   point2D_t DeMoN_OF_Height = 48;
+//   point2D_t DeMoN_OF_Width = 64;
+//   for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+//   {
+//       FeatureMatches matches1to2;
+//       std::vector<int> matches12;
+//       // const size_t num_matches12;
+//       size_t num_matches12 = 0;
+//       matches12.resize(keypoints1.size(), -1);
+//
+//       for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+//       // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
+//       {
+//           // std::cout << "image_scale_factor = " << image_scale_factor << "; OF_scale_factor = " << OF_scale_factor << std::endl;
+//           point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+//           // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
+//           int shareIdKp1Cnt = 0;
+//
+//           // float quantizationCenter_y_1 = floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+//           // float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+//           // // float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-quantizationCenter_y_1*(DeMoN_OF_Width * OF_scale_factor));
+//           // if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2)) < image_scale_factor * 1)//uncertainty_radius*uncertainty_radius)
+//           if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+//           {
+//               std::cout << "direction 1 ---> 2" << std::endl;
+//               shareIdKp1Cnt++;
+//               std::vector<point2D_t> tmpIndices1;
+//               // std::cout << "tmpIndices1 is created!" << std::endl;
+//
+//               tmpIndices1.push_back(kp1Idx);
+//
+//               Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+//               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+//               {
+//                   tmpDescriptors1.resize(kp1Idx+1, 128);
+//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+//               }
+//               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+//
+//               std::vector<point2D_t> tmpIndices2;
+//               // point2D_t tmpQuantizationIdx2 = (keypoints2[0].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[0].y / image_scale_factor);
+//               // float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+//               // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+//               // std::cout << "~~ quantizationCenter_x_2 = " << quantizationCenter_x_2 << "~~ quantizationCenter_y_2 = " << quantizationCenter_y_2 << "~~ tmpQuantizationIdx2 = " << tmpQuantizationIdx2 << std::endl;
+//               for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+//               {
+//                   point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+//                   float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+//                   float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+//                   // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+//                   if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=uncertainty_radius*uncertainty_radius)
+//                   // if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+//                   {
+//                       // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+//                       tmpIndices2.push_back(kp2Idx);
+//                   }
+//               }
+//               // std::cout << "~~ tmpIndices2.size() = " << tmpIndices2.size() << std::endl;
+//
+//               Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+//               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+//               {
+//                   tmpDescriptors2.resize(kp2Idx+1, 128);
+//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+//               }
+//               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+//
+//               // // remember to normalize the descriptors so that colmap threshold params can be used!
+//               // Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+//               // Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+//               // desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+//               // desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+//               // // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
+//               // // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
+//
+//               const Eigen::MatrixXi dists12 = ComputeSiftDistanceMatrix(
+//                   nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+//               // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+//               // num_matches12 = FindBestMatchesOneWay(dists12, match_options.max_ratio, match_options.max_distance, &matches12);
+//
+//               FeatureMatches tmpQuantizationMatches12;
+//               FindBestMatches(dists12, match_options.max_ratio, match_options.max_distance,
+//                               match_options.cross_check, &tmpQuantizationMatches12);
+//               // std::cout << "FindBestMatches is done!" << std::endl;
+//
+//               for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches12.size(); resultCnt++)
+//               {
+//                   FeatureMatch ConvertedMatch;
+//                   ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches12[resultCnt].point2D_idx1];
+//                   ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches12[resultCnt].point2D_idx2];
+//                   // matches->push_back(ConvertedMatch);
+//                   matches1to2.push_back(ConvertedMatch);
+//                   matches12[ConvertedMatch.point2D_idx1] = ConvertedMatch.point2D_idx2;
+//                   num_matches12++;
+//               }
+//               // std::cout << "index conversion is done!" << std::endl;
+//           }
+//           // std::cout << "end of loop kp1Idx ^" << std::endl;
+//           // std::cout << "@@@ shareIdKp1Cnt = " << shareIdKp1Cnt << std::endl;
+//       }
+//       // std::cout << "end of loop kp1Idx ^" << std::endl;
+//
+//       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//       FeatureMatches matches2to1;
+//       std::vector<int> matches21;
+//       // const size_t num_matches21;
+//       size_t num_matches21 = 0;
+//       matches21.resize(keypoints2.size(), -1);
+//
+//       for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+//       {
+//           point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+//           int shareIdKp2Cnt = 0;
+//
+//           // float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+//           // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+//           // // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+//           // if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2)) < image_scale_factor * 1)//uncertainty_radius*uncertainty_radius)
+//           if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+//           {
+//               std::cout << "@ direction 2 ---> 1" << std::endl;
+//               shareIdKp2Cnt++;
+//               std::vector<point2D_t> tmpIndices2;
+//               // std::cout << "tmpIndices2 is created!" << std::endl;
+//
+//               tmpIndices2.push_back(kp2Idx);
+//
+//               Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+//               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+//               {
+//                   tmpDescriptors2.resize(kp2Idx+1, 128);
+//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+//               }
+//               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+//
+//               std::vector<point2D_t> tmpIndices1;
+//               for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+//               {
+//                   point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+//                   float quantizationCenter_y_1 = floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+//                   float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+//                   // float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-quantizationCenter_y_1*(DeMoN_OF_Width * OF_scale_factor));
+//                   if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2))<=uncertainty_radius*uncertainty_radius)
+//                   // if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+//                   {
+//                       // tmpDescriptors1 << descriptors1.block<1,128>(kp1Idx,0);
+//                       tmpIndices1.push_back(kp1Idx);
+//                   }
+//               }
+//               // std::cout << "~~ tmpIndices1.size() = " << tmpIndices1.size() << std::endl;
+//
+//               Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+//               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+//               {
+//                   tmpDescriptors1.resize(kp1Idx+1, 128);
+//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+//               }
+//               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+//
+//               const Eigen::MatrixXi dists21 = ComputeSiftDistanceMatrix(
+//                   nullptr, nullptr, tmpDescriptors2, tmpDescriptors1, nullptr);
+//               // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+//
+//               // num_matches21 = FindBestMatchesOneWay(dists21, match_options.max_ratio, match_options.max_distance, &matches21);
+//
+//               FeatureMatches tmpQuantizationMatches21;
+//               FindBestMatches(dists21, match_options.max_ratio, match_options.max_distance,
+//                               match_options.cross_check, &tmpQuantizationMatches21);
+//               // std::cout << "FindBestMatches is done!" << std::endl;
+//
+//               for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches21.size(); resultCnt++)
+//               {
+//                   FeatureMatch ConvertedMatch;
+//                   ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches21[resultCnt].point2D_idx2];
+//                   ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches21[resultCnt].point2D_idx1];
+//                   // matches->push_back(ConvertedMatch);
+//                   matches2to1.push_back(ConvertedMatch);
+//                   matches21[ConvertedMatch.point2D_idx2] = ConvertedMatch.point2D_idx1;
+//                   num_matches21++;
+//               }
+//               // // std::cout << "index conversion is done!" << std::endl;
+//           }
+//           // std::cout << "end of loop kp1Idx ^" << std::endl;
+//           // std::cout << "@@@ shareIdKp1Cnt = " << shareIdKp1Cnt << std::endl;
+//       }
+//       // std::cout << "end of loop kp1Idx ^" << std::endl;
+//       /////////////////////////////////////////////////////////////////////
+//       /******* Manually cross checking *******/
+//       if (true) {
+//         std::cout << "@@@ num_matches12 = " << num_matches12 << ", @@@ matches12.size() = " << matches12.size() << ", @@@ num_matches21 = " << num_matches21 << ", @@@ matches21.size() = " << matches21.size() << std::endl;
+//         matches->reserve(std::min(num_matches12, num_matches21));
+//         for (size_t i1 = 0; i1 < matches12.size(); ++i1) {
+//           if (matches12[i1] != -1 && matches21[matches12[i1]] != -1 &&
+//               matches21[matches12[i1]] == static_cast<int>(i1)) {
+//             FeatureMatch match;
+//             match.point2D_idx1 = i1;
+//             match.point2D_idx2 = matches12[i1];
+//             matches->push_back(match);
+//           }
+//         }
+//       }
+//       /////////////////////////////////////////////////////////////////////
+//   }
+//
+// }
+
+
+void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
+                          const FeatureKeypoints& keypoints1,
+                          const FeatureKeypoints& keypoints2,
+                          const FeatureDescriptors& descriptors1,
+                          const FeatureDescriptors& descriptors2,
+                          const FeatureMatches& quantization_map,
+                          FeatureMatches* matches) {
+  CHECK(match_options.Check());
+  CHECK_NOTNULL(matches);
+
+  double uncertainty_radius = match_options.uncertainty_radius;
+  point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t OF_scale_factor = match_options.OF_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t DeMoN_OF_Height = 48;
+  point2D_t DeMoN_OF_Width = 64;
+
+  int numQuantizationMapping = quantization_map.size();
+  std::unordered_map<point2D_t, point2D_t> mapping1to2;
+  std::unordered_map<point2D_t, point2D_t> mapping2to1;
+  for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  {
+      mapping1to2[quantization_map[cnt].point2D_idx1] = quantization_map[cnt].point2D_idx2;
+      mapping2to1[quantization_map[cnt].point2D_idx2] = quantization_map[cnt].point2D_idx1;
+  }
+  std::cout << "convert quantization map to unordered map successfully!" << std::endl;
+
+  //for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  //{
+      FeatureMatches matches1to2;
+      std::vector<int> matches12;
+      // const size_t num_matches12;
+      size_t num_matches12 = 0;
+      matches12.resize(keypoints1.size(), -1);
+
+      for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+      // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
+      {
+          // std::cout << "image_scale_factor = " << image_scale_factor << "; OF_scale_factor = " << OF_scale_factor << std::endl;
+          point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+          // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
+          //int shareIdKp1Cnt = 0;
+          // point2D_t mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
+          point2D_t mappedQuantizationIdx2;
+          if(mapping1to2.count(tmpQuantizationIdx1) > 0)
+          {
+              mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
+          } else {
+              continue;
+          }
+          // float quantizationCenter_y_1 = floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+          // float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+          // // float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-quantizationCenter_y_1*(DeMoN_OF_Width * OF_scale_factor));
+          // if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2)) < image_scale_factor * 1)//uncertainty_radius*uncertainty_radius)
+          //if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+          //{
+              //std::cout << "direction 1 ---> 2" << std::endl;
+              //shareIdKp1Cnt++;
+              std::vector<point2D_t> tmpIndices1;
+              // std::cout << "tmpIndices1 is created!" << std::endl;
+
+              tmpIndices1.push_back(kp1Idx);
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+              for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+              {
+                  tmpDescriptors1.resize(kp1Idx+1, 128);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+              }
+              // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+
+              std::vector<point2D_t> tmpIndices2;
+              for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+              {
+                  point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+                  float quantizationCenter_y_2 = floor(mappedQuantizationIdx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+                  float quantizationCenter_x_2 = image_scale_factor * (mappedQuantizationIdx2-floor(mappedQuantizationIdx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+                  // float quantizationCenter_x_2 = image_scale_factor * (mappedQuantizationIdx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+                  if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=uncertainty_radius*uncertainty_radius)
+                  // if(tmpQuantizationIdx2==mappedQuantizationIdx2)
+                  {
+                      // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+                      tmpIndices2.push_back(kp2Idx);
+                  }
+              }
+              // std::cout << "~~ tmpIndices2.size() = " << tmpIndices2.size() << std::endl;
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+              for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+              {
+                  tmpDescriptors2.resize(kp2Idx+1, 128);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+              }
+              // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+
+              // // remember to normalize the descriptors so that colmap threshold params can be used!
+              // Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+              // Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+              // desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+              // desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+              // // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
+              // // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
+
+              const Eigen::MatrixXi dists12 = ComputeSiftDistanceMatrix(
+                  nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+              // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+              // num_matches12 = FindBestMatchesOneWay(dists12, match_options.max_ratio, match_options.max_distance, &matches12);
+
+              FeatureMatches tmpQuantizationMatches12;
+              FindBestMatches(dists12, match_options.max_ratio, match_options.max_distance,
+                              false, &tmpQuantizationMatches12);
+              // std::cout << "FindBestMatches is done!" << std::endl;
+
+              for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches12.size(); resultCnt++)
+              {
+                  FeatureMatch ConvertedMatch;
+                  ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches12[resultCnt].point2D_idx1];
+                  ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches12[resultCnt].point2D_idx2];
+                  // matches->push_back(ConvertedMatch);
+                  matches1to2.push_back(ConvertedMatch);
+                  matches12[ConvertedMatch.point2D_idx1] = ConvertedMatch.point2D_idx2;
+                  num_matches12++;
+              }
+              // std::cout << "index conversion is done!" << std::endl;
+          //}
+          // std::cout << "end of loop kp1Idx ^" << std::endl;
+          // std::cout << "@@@ shareIdKp1Cnt = " << shareIdKp1Cnt << std::endl;
+      }
+      // std::cout << "end of loop kp1Idx ^" << std::endl;
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      FeatureMatches matches2to1;
+      std::vector<int> matches21;
+      // const size_t num_matches21;
+      size_t num_matches21 = 0;
+      matches21.resize(keypoints2.size(), -1);
+
+      for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+      {
+          point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+          //int shareIdKp2Cnt = 0;
+          // point2D_t mappedQuantizationIdx1 = mapping2to1[tmpQuantizationIdx2];
+          point2D_t mappedQuantizationIdx1;
+          if(mapping2to1.count(tmpQuantizationIdx2) > 0)
+          {
+              mappedQuantizationIdx1 = mapping2to1[tmpQuantizationIdx2];
+          } else {
+              continue;
+          }
+          // float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+          // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+          // // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+          // if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2)) < image_scale_factor * 1)//uncertainty_radius*uncertainty_radius)
+          //if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+          //{
+              //std::cout << "@ direction 2 ---> 1" << std::endl;
+              //shareIdKp2Cnt++;
+              std::vector<point2D_t> tmpIndices2;
+              // std::cout << "tmpIndices2 is created!" << std::endl;
+
+              tmpIndices2.push_back(kp2Idx);
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+              for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+              {
+                  tmpDescriptors2.resize(kp2Idx+1, 128);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+              }
+              // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+
+              std::vector<point2D_t> tmpIndices1;
+              for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+              {
+                  point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+                  float quantizationCenter_y_1 = floor(mappedQuantizationIdx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+                  float quantizationCenter_x_1 = image_scale_factor * (mappedQuantizationIdx1-floor(mappedQuantizationIdx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+                  // float quantizationCenter_x_1 = image_scale_factor * (mappedQuantizationIdx1-quantizationCenter_y_1*(DeMoN_OF_Width * OF_scale_factor));
+                  if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2))<=uncertainty_radius*uncertainty_radius)
+                  // if(tmpQuantizationIdx1==mappedQuantizationIdx1)
+                  {
+                      // tmpDescriptors1 << descriptors1.block<1,128>(kp1Idx,0);
+                      tmpIndices1.push_back(kp1Idx);
+                  }
+              }
+              // std::cout << "~~ tmpIndices1.size() = " << tmpIndices1.size() << std::endl;
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+              for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+              {
+                  tmpDescriptors1.resize(kp1Idx+1, 128);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+              }
+              // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+
+              const Eigen::MatrixXi dists21 = ComputeSiftDistanceMatrix(
+                  nullptr, nullptr, tmpDescriptors2, tmpDescriptors1, nullptr);
+              // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+
+              // num_matches21 = FindBestMatchesOneWay(dists21, match_options.max_ratio, match_options.max_distance, &matches21);
+
+              FeatureMatches tmpQuantizationMatches21;
+              FindBestMatches(dists21, match_options.max_ratio, match_options.max_distance,
+                              false, &tmpQuantizationMatches21);
+              // std::cout << "FindBestMatches is done!" << std::endl;
+
+              for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches21.size(); resultCnt++)
+              {
+                  FeatureMatch ConvertedMatch;
+                  ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches21[resultCnt].point2D_idx2];
+                  ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches21[resultCnt].point2D_idx1];
+                  // matches->push_back(ConvertedMatch);
+                  matches2to1.push_back(ConvertedMatch);
+                  matches21[ConvertedMatch.point2D_idx2] = ConvertedMatch.point2D_idx1;
+                  num_matches21++;
+              }
+              // // std::cout << "index conversion is done!" << std::endl;
+          //}
+          // std::cout << "end of loop kp1Idx ^" << std::endl;
+          // std::cout << "@@@ shareIdKp1Cnt = " << shareIdKp1Cnt << std::endl;
+      }
+      // std::cout << "end of loop kp1Idx ^" << std::endl;
+      /////////////////////////////////////////////////////////////////////
+      /******* Manually cross checking *******/
+      if (true) {
+        std::cout << "@@@ num_matches12 = " << num_matches12 << ", @@@ matches12.size() = " << matches12.size() << ", @@@ num_matches21 = " << num_matches21 << ", @@@ matches21.size() = " << matches21.size() << std::endl;
+        matches->reserve(std::min(num_matches12, num_matches21));
+        for (size_t i1 = 0; i1 < matches12.size(); ++i1) {
+          if (matches12[i1] != -1 && matches21[matches12[i1]] != -1 &&
+              matches21[matches12[i1]] == static_cast<int>(i1)) {
+            FeatureMatch match;
+            match.point2D_idx1 = i1;
+            match.point2D_idx2 = matches12[i1];
+            matches->push_back(match);
+          }
+        }
+        std::cout << "### cross-check survivors = " << matches->size() << std::endl;
+      }
+      /////////////////////////////////////////////////////////////////////
+  //}
+
+}
+
+void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase_byPixel(const SiftMatchingOptions& match_options,
+                          const FeatureKeypoints& keypoints1,
+                          const FeatureKeypoints& keypoints2,
+                          const FeatureDescriptors& descriptors1,
+                          const FeatureDescriptors& descriptors2,
+                          const FeatureMatches& quantization_map,
+                          FeatureMatches* matches) {
+  CHECK(match_options.Check());
+  CHECK_NOTNULL(matches);
+
+  point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t DeMoN_OF_Height = 48;
+  point2D_t DeMoN_OF_Width = 64;
+  for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  {
+
+      for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+      // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
+      {
+          // std::cout << "loop kp1Idx ^" << std::endl;
+          point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+          // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
+          if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+          {
+              std::vector<point2D_t> tmpIndices1;
+              // std::cout << "tmpIndices1 is created!" << std::endl;
+
+              tmpIndices1.push_back(kp1Idx);
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+              for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+              {
+                  tmpDescriptors1.resize(kp1Idx+1, 128);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+              }
+              // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+
+              std::vector<point2D_t> tmpIndices2;
+              for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+              {
+                  point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+                  if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+                  {
+                      // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+                      tmpIndices2.push_back(kp2Idx);
+                  }
+              }
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+              for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+              {
+                  tmpDescriptors2.resize(kp2Idx+1, 128);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+              }
+              // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+
+              // // remember to normalize the descriptors so that colmap threshold params can be used!
+              // Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+              // Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+              // desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+              // desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+              // // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
+              // // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
+
+              const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+                  nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+              // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+
+              FeatureMatches tmpQuantizationMatches;
+              FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+                              match_options.cross_check, &tmpQuantizationMatches);
+              // std::cout << "FindBestMatches is done!" << std::endl;
+
+              for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches.size(); resultCnt++)
+              {
+                  FeatureMatch ConvertedMatch;
+                  ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches[resultCnt].point2D_idx1];
+                  ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches[resultCnt].point2D_idx2];
+                  matches->push_back(ConvertedMatch);
+              }
+              // std::cout << "index conversion is done!" << std::endl;
+
+          }
+          // std::cout << "end of loop kp1Idx ^" << std::endl;
+      }
+      // std::cout << "end of loop kp1Idx ^" << std::endl;
+
+  }
+
+}
+
 void MatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
                           const FeatureDescriptors& descriptors1,
                           const FeatureDescriptors& descriptors2,
@@ -1031,20 +1886,20 @@ void MatchSiftFeaturesCPU_Normalize(const SiftMatchingOptions& match_options,
                           const FeatureDescriptors& descriptors1,
                           const FeatureDescriptors& descriptors2,
                           FeatureMatches* matches) {
-  CHECK(match_options.Check());
-  CHECK_NOTNULL(matches);
-  std::cout << "#### Enter MatchSiftFeaturesCPU_Normalize()" << std::endl;
-  // remember to normalize the descriptors so that colmap threshold params can be used!
-  Eigen::MatrixXf desc1 = descriptors1.cast <float> ();
-  Eigen::MatrixXf desc2 = descriptors2.cast <float> ();
-  desc1 = L1RootNormalizeFeatureDescriptors(desc1);
-  desc2 = L1RootNormalizeFeatureDescriptors(desc2);
-
-  const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
-      nullptr, nullptr, desc1, desc2, nullptr);
-
-  FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
-                  match_options.cross_check, matches);
+  // CHECK(match_options.Check());
+  // CHECK_NOTNULL(matches);
+  // std::cout << "#### Enter MatchSiftFeaturesCPU_Normalize()" << std::endl;
+  // // remember to normalize the descriptors so that colmap threshold params can be used!
+  // Eigen::MatrixXf desc1 = descriptors1.cast <float> ();
+  // Eigen::MatrixXf desc2 = descriptors2.cast <float> ();
+  // desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+  // desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+  //
+  // const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+  //     nullptr, nullptr, desc1, desc2, nullptr);
+  //
+  // FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+  //                 match_options.cross_check, matches);
 }
 
 void MatchGuidedSiftFeaturesCPU(const SiftMatchingOptions& match_options,

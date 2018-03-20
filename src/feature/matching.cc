@@ -503,10 +503,19 @@ void OFGuidedSiftCPUFeatureMatcher::Run() {
       // } else {
       //   LOG(FATAL) << "Normalization type not supported";
       // }
-      
+
 
       // OFGuidedMatchSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
-      OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      if(options_.MatchingByPixel){
+          // OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase_byPixel(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+          if(options_.ManualCrossCheck==false){
+              OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+          } else {
+              OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+          }
+      } else {
+          OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      }
 
       // MatchSiftFeaturesCPU(options_, descriptors1, descriptors2, &data.matches);
       // MatchGuidedSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, &data.two_view_geometry);

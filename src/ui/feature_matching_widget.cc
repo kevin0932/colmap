@@ -83,6 +83,8 @@ class OFGuidedMatchingTab : public FeatureMatchingTab {
  private:
   std::string match_list_path_;
   size_t image_scale_factor_;
+  float uncertainty_radius_;
+  size_t OF_scale_factor_;
   bool only_image_pairs_as_ref_;
   QComboBox* match_type_cb_;
 };
@@ -122,6 +124,11 @@ void FeatureMatchingTab::CreateGeneralOptions() {
   AddSpacer();
 
   AddOptionInt(&options_->sift_matching->image_scale_factor, "image_scale_factor");
+  AddOptionInt(&options_->sift_matching->OF_scale_factor, "OF_scale_factor");
+  AddOptionDouble(&options_->sift_matching->uncertainty_radius, "uncertainty_radius");
+
+  AddOptionBool(&options_->sift_matching->MatchingByPixel, "MatchingByPixel");
+  AddOptionBool(&options_->sift_matching->ManualCrossCheck, "ManualCrossCheck");
 
   QPushButton* run_button = new QPushButton(tr("Run"), this);
   grid_layout_->addWidget(run_button, grid_layout_->rowCount(), 1);
