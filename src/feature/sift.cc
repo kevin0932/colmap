@@ -1084,7 +1084,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
                   retrieved_quantizationCenter_y_1 = quantizationCenter_y_1;
               }
           }
-          if(NNflag==false || tmpMinSquareDist>1*image_scale_factor)
+          if(NNflag==false || tmpMinSquareDist>5*image_scale_factor*image_scale_factor)
           {
               // std::cout << "skip this kp1, no NN quantization center could be retrieved!" << std::endl;
               continue;
@@ -1568,16 +1568,45 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftM
       for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
       // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
       {
-          // std::cout << "image_scale_factor = " << image_scale_factor << "; OF_scale_factor = " << OF_scale_factor << std::endl;
-          point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
-          // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
-          //int shareIdKp1Cnt = 0;
-          // point2D_t mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
+          // // std::cout << "image_scale_factor = " << image_scale_factor << "; OF_scale_factor = " << OF_scale_factor << std::endl;
+          // point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
+          // // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
+          // //int shareIdKp1Cnt = 0;
+          // // point2D_t mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
+          // point2D_t mappedQuantizationIdx2;
+          // if(mapping1to2.count(tmpQuantizationIdx1) > 0)
+          // {
+          //     mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
+          // } else {
+          //     continue;
+          // }
+          point2D_t tmpQuantizationIdx1 = 0;
           point2D_t mappedQuantizationIdx2;
-          if(mapping1to2.count(tmpQuantizationIdx1) > 0)
+          float retrieved_quantizationCenter_x_1;
+          float retrieved_quantizationCenter_y_1;
+          float tmpMinSquareDist = 10000.0;
+          bool NNflag = false;
+          // for(auto element : mapping1to2)
+          // for(point2D_t key12 : keys1to2)
+          for(std::unordered_map<point2D_t,point2D_t>::iterator it = mapping1to2.begin(); it != mapping1to2.end(); ++it)
           {
-              mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
-          } else {
+              point2D_t tmpIdx1 = it->first;
+              float quantizationCenter_y_1 = floor(tmpIdx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+              float quantizationCenter_x_1 = image_scale_factor * (tmpIdx1-floor(tmpIdx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+              float tmpSquareDist = (pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2));
+              if(tmpSquareDist<=tmpMinSquareDist)
+              {
+                  tmpQuantizationIdx1 = tmpIdx1;
+                  tmpMinSquareDist = tmpSquareDist;
+                  NNflag = true;
+                  mappedQuantizationIdx2 = it->second;
+                  retrieved_quantizationCenter_x_1 = quantizationCenter_x_1;
+                  retrieved_quantizationCenter_y_1 = quantizationCenter_y_1;
+              }
+          }
+          if(NNflag==false || tmpMinSquareDist>5*image_scale_factor*image_scale_factor)
+          {
+              // std::cout << "skip this kp1, no NN quantization center could be retrieved!" << std::endl;
               continue;
           }
           // float quantizationCenter_y_1 = floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
@@ -1669,14 +1698,43 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftM
 
       for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
       {
-          point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
-          //int shareIdKp2Cnt = 0;
-          // point2D_t mappedQuantizationIdx1 = mapping2to1[tmpQuantizationIdx2];
+          // point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
+          // //int shareIdKp2Cnt = 0;
+          // // point2D_t mappedQuantizationIdx1 = mapping2to1[tmpQuantizationIdx2];
+          // point2D_t mappedQuantizationIdx1;
+          // if(mapping2to1.count(tmpQuantizationIdx2) > 0)
+          // {
+          //     mappedQuantizationIdx1 = mapping2to1[tmpQuantizationIdx2];
+          // } else {
+          //     continue;
+          // }
+          point2D_t tmpQuantizationIdx2 = 0;
           point2D_t mappedQuantizationIdx1;
-          if(mapping2to1.count(tmpQuantizationIdx2) > 0)
+          float retrieved_quantizationCenter_x_2;
+          float retrieved_quantizationCenter_y_2;
+          float tmpMinSquareDist = 10000.0;
+          bool NNflag = false;
+          // for(auto element : mapping1to2)
+          // for(point2D_t key12 : keys1to2)
+          for(std::unordered_map<point2D_t,point2D_t>::iterator it = mapping2to1.begin(); it != mapping2to1.end(); ++it)
           {
-              mappedQuantizationIdx1 = mapping2to1[tmpQuantizationIdx2];
-          } else {
+              point2D_t tmpIdx2 = it->first;
+              float quantizationCenter_y_2 = floor(tmpIdx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+              float quantizationCenter_x_2 = image_scale_factor * (tmpIdx2-floor(tmpIdx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+              float tmpSquareDist = (pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2));
+              if(tmpSquareDist<=tmpMinSquareDist)
+              {
+                  tmpQuantizationIdx2 = tmpIdx2;
+                  tmpMinSquareDist = tmpSquareDist;
+                  NNflag = true;
+                  mappedQuantizationIdx1 = it->second;
+                  retrieved_quantizationCenter_x_2 = quantizationCenter_x_2;
+                  retrieved_quantizationCenter_y_2 = quantizationCenter_y_2;
+              }
+          }
+          if(NNflag==false || tmpMinSquareDist>5*image_scale_factor*image_scale_factor)
+          {
+              // std::cout << "skip this kp1, no NN quantization center could be retrieved!" << std::endl;
               continue;
           }
           // float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
