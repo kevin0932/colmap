@@ -89,6 +89,22 @@ class OFGuidedMatchingTab : public FeatureMatchingTab {
   QComboBox* match_type_cb_;
 };
 
+class NewOFGuidedMatchingTab : public FeatureMatchingTab {
+ public:
+  NewOFGuidedMatchingTab(QWidget* parent, OptionManager* options);
+  void Run() override;
+
+ private:
+  std::string match_list_path_;
+  std::string optical_flow_path_;
+  size_t image_scale_factor_;
+  float uncertainty_radius_;
+  size_t OF_scale_factor_;
+  bool only_image_pairs_as_ref_;
+  QComboBox* match_type_cb_;
+  QComboBox* optical_flow_cb_;
+};
+
 FeatureMatchingTab::FeatureMatchingTab(QWidget* parent, OptionManager* options)
     : OptionsWidget(parent),
       options_(options),
@@ -119,6 +135,7 @@ void FeatureMatchingTab::CreateGeneralOptions() {
 
   AddSpacer();
 
+  AddOptionBool(&options_->sift_matching->new_optical_flow_guided_matching, "new_optical_flow_guided_matching (first-priority)");
   AddOptionBool(&options_->sift_matching->optical_flow_guided_matching, "optical_flow_guided_matching");
   AddOptionBool(&options_->sift_matching->only_image_pairs_as_ref, "only_image_pairs_as_ref");
   AddSpacer();
@@ -129,6 +146,7 @@ void FeatureMatchingTab::CreateGeneralOptions() {
 
   AddOptionBool(&options_->sift_matching->MatchingByPixel, "MatchingByPixel");
   AddOptionBool(&options_->sift_matching->ManualCrossCheck, "ManualCrossCheck");
+  AddOptionBool(&options_->sift_matching->ColmapFormat, "ColmapFormat");
 
   QPushButton* run_button = new QPushButton(tr("Run"), this);
   grid_layout_->addWidget(run_button, grid_layout_->rowCount(), 1);
@@ -334,6 +352,51 @@ void OFGuidedMatchingTab::Run() {
   thread_control_widget_->StartThread("OF-Guided Matching...", true, matcher);
 }
 
+NewOFGuidedMatchingTab::NewOFGuidedMatchingTab(QWidget* parent, OptionManager* options)
+    : FeatureMatchingTab(parent, options) {
+  match_type_cb_ = new QComboBox(this);
+  match_type_cb_->addItem(QString("Image pairs and quantization maps"));
+  // match_type_cb_->addItem(QString("Raw feature matches"));
+  // match_type_cb_->addItem(QString("Inlier feature matches"));
+  grid_layout_->addWidget(match_type_cb_, grid_layout_->rowCount(), 1);
+
+  AddOptionFilePath(&match_list_path_, "match_list_path");
+  // AddOptionBool(&only_image_pairs_as_ref_, "only_image_pairs_as_ref is enabled or not");
+  // AddOptionInt(&image_scale_factor_, "image_scale_factor", -1);
+  AddSpacer();
+  optical_flow_cb_ = new QComboBox(this);
+  optical_flow_cb_->addItem(QString("optical flow predicted by DeMoN"));
+  grid_layout_->addWidget(optical_flow_cb_, grid_layout_->rowCount(), 1);
+  AddSpacer();
+  AddOptionFilePath(&optical_flow_path_, "optical_flow_input_list_path");
+  CreateGeneralOptions();
+}
+
+void NewOFGuidedMatchingTab::Run() {
+  WriteOptions();
+
+  if (!ExistsFile(match_list_path_)) {
+    QMessageBox::critical(this, "", tr("match_list_path does not exist!"));
+    return;
+  }
+  if (!ExistsFile(optical_flow_path_)) {
+    QMessageBox::critical(this, "", tr("optical_flow_path does not exist!"));
+    return;
+  }
+
+  Thread* matcher = nullptr;
+
+  OFGuidedImagePairsMatchingOptions matcher_options;
+  matcher_options.match_list_path = match_list_path_;
+  matcher_options.optical_flow_path = optical_flow_path_;
+  // matcher_options.image_scale_factor = image_scale_factor_;
+  // matcher_options.only_image_pairs_as_ref = only_image_pairs_as_ref_;
+  matcher = new NewOFGuidedImagePairsFeatureMatcher( matcher_options,
+                        *options_->sift_matching, *options_->database_path);
+
+  thread_control_widget_->StartThread("New OF-Guided Matching...", true, matcher);
+}
+
 FeatureMatchingWidget::FeatureMatchingWidget(QWidget* parent,
                                              OptionManager* options)
     : parent_(parent) {
@@ -355,6 +418,7 @@ FeatureMatchingWidget::FeatureMatchingWidget(QWidget* parent,
                       tr("Transitive"));
   tab_widget_->addTab(new CustomMatchingTab(this, options), tr("Custom"));
   tab_widget_->addTab(new OFGuidedMatchingTab(this, options), tr("OFGuided"));
+  tab_widget_->addTab(new NewOFGuidedMatchingTab(this, options), tr("NewOFGuided"));
 
   grid->addWidget(tab_widget_, 0, 0);
 }

@@ -7,57 +7,113 @@ import sys
 from PIL import Image
 import PIL
 
-def read_quantization_map(filepath='/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/test_quantization_map_OFscale_8_err_1000.txt'):
-    quantization_maps = dict()
-    fh = open(filepath)
-    image_pair_num = 10
-    while True:
-        line = fh.readline()
-        line = line.strip()
-        #print(line)
-        image_names = line.split(' ')
-        print(image_names)
-        if len(image_names)<2:
-            print("end of quantization map file!")
-            break
-        image_pair = image_names[0]+'---'+image_names[1]
-
-        id_map = []
+def read_quantization_map(filepath='/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/test_quantization_map_OFscale_8_err_1000.txt', image_pair_to_retrieved = None):
+    if image_pair_to_retrieved is None:
+        quantization_maps = dict()
+        fh = open(filepath)
+        image_pair_num = 25
         while True:
             line = fh.readline()
-            if line=="\n":
-                break
-            # # check if line is not empty
-            # if not line or line=="\n":
-            #     break
-            if line[0]=="#":
-                continue
-
-            if line[0]=="I":
-                line = line.strip()
-                image_names = line.split(' ')
-                print(image_names)
-                image_pair = image_names[0]+'---'+image_names[1]
-                continue
             line = line.strip()
             #print(line)
-            index_pairs = line.split(' ')
+            image_names = line.split(' ')
+            print(image_names)
+            if len(image_names)<2:
+                print("end of quantization map file!")
+                break
+            image_pair = image_names[0]+'---'+image_names[1]
 
-            #print(line, " ", line[0])
-            id_map.append([index_pairs[0], index_pairs[1]])
-            #print(np.array(id_map).shape)
-            #return
-        id_map_npArr = np.array(id_map)
-        #print(type(id_map_npArr))
-        #print(type(id_map_npArr.dtype))
-        quantization_maps[image_pair] = id_map_npArr
-        if len(quantization_maps)  == image_pair_num:
-            break
+            id_map = []
+            while True:
+                line = fh.readline()
+                if line=="\n":
+                    break
+                # # check if line is not empty
+                # if not line or line=="\n":
+                #     break
+                if line[0]=="#":
+                    continue
 
-    fh.close()
-    print('reading done!')
-    return quantization_maps
+                if line[0]=="I":
+                    line = line.strip()
+                    image_names = line.split(' ')
+                    print(image_names)
+                    image_pair = image_names[0]+'---'+image_names[1]
+                    continue
+                line = line.strip()
+                #print(line)
+                index_pairs = line.split(' ')
 
+                #print(line, " ", line[0])
+                id_map.append([index_pairs[0], index_pairs[1]])
+                #print(np.array(id_map).shape)
+                #return
+            id_map_npArr = np.array(id_map)
+            #print(type(id_map_npArr))
+            #print(type(id_map_npArr.dtype))
+            quantization_maps[image_pair] = id_map_npArr
+            if len(quantization_maps)  == image_pair_num:
+                break
+
+        fh.close()
+        print('reading done!')
+        return quantization_maps
+    else:
+        print("image_pair_to_retrieved = ", image_pair_to_retrieved)
+        quantization_maps = dict()
+        fh = open(filepath)
+        image_pair_num = 1000000
+        while True:
+            line = fh.readline()
+            line = line.strip()
+            #print(line)
+            image_names = line.split(' ')
+            print(image_names)
+            if len(image_names)<2:
+                print("end of quantization map file!")
+                break
+            image_pair = image_names[0]+'---'+image_names[1]
+
+            id_map = []
+            while True:
+                line = fh.readline()
+                if line=="\n":
+                    break
+                # # check if line is not empty
+                # if not line or line=="\n":
+                #     break
+                if line[0]=="#":
+                    continue
+
+                if line[0]=="I":
+                    line = line.strip()
+                    image_names = line.split(' ')
+                    print(image_names)
+                    image_pair = image_names[0]+'---'+image_names[1]
+                    continue
+                line = line.strip()
+                #print(line)
+                index_pairs = line.split(' ')
+
+                #print(line, " ", line[0])
+                id_map.append([index_pairs[0], index_pairs[1]])
+                #print(np.array(id_map).shape)
+                #return
+            id_map_npArr = np.array(id_map)
+            #print(type(id_map_npArr))
+            #print(type(id_map_npArr.dtype))
+            quantization_maps[image_pair] = id_map_npArr
+            if len(quantization_maps)  == image_pair_num or image_pair_to_retrieved == image_pair:
+                break
+
+        fh.close()
+        print('reading done!')
+        quantization_map_retrieved = dict()
+        if image_pair_to_retrieved in quantization_maps.keys():
+            quantization_map_retrieved[image_pair_to_retrieved] = quantization_maps[image_pair_to_retrieved]
+            return quantization_map_retrieved
+        else:
+            print("The image_pair ", image_pair, " doesn't exist in the file!")
 
 def show_rgb_img(img):
     """Convenience function to display a typical color image"""
@@ -116,7 +172,7 @@ def pil_grid(images, max_horiz=np.iinfo(int).max):
 #image_height = 48 * 8
 #image_width = 64 * 8
 image_scale_factor = 1
-OF_scale_factor = 16
+OF_scale_factor = 8
 image_height = 48 * OF_scale_factor
 image_width = 64 * OF_scale_factor
 if __name__ == '__main__':
@@ -131,21 +187,45 @@ if __name__ == '__main__':
     #quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/test_quantization_map_OFscale_2_err_1000.txt')
     #quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/test_quantization_map_OFscale_8_err_8000.txt')
     #quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/test_quantization_map_OFscale_4_err_8000.txt')
+
     # input_images_dir = "/media/kevin/MYDATA/cab_front/DenseSIFT/images_demon_1536_2048"
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_1_err_4000.txt')
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_1_err_1000.txt')
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_1_err_500.txt')
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_1_err_100.txt')
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_4_err_2000.txt')
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/full_quantization_map_OFscale_1.txt')
+    # # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_1_err_4000.txt')
+    # # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_1_err_1000.txt')
+    # # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_1_err_500.txt')
+    # # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_1_err_100.txt')
+    # # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/test_quantization_map_OFscale_4_err_2000.txt')
+    # # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/full_quantization_map_OFscale_1.txt')
     # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000.txt')
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_23.txt')
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_4000_survivorRatio_500_validPairNum_37.txt')
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_8000_survivorRatio_500_validPairNum_40.txt')
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_16000_survivorRatio_500_validPairNum_52.txt')
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_32000_survivorRatio_500_validPairNum_55.txt')
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_4_err_8000_survivorRatio_500_validPairNum_29.txt')
+
+    # input_images_dir = "/media/kevin/MYDATA/textureless_desk_10032018/DenseSIFT/images_demon_1536_2048"
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/textureless_desk_10032018/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_2000_survivorRatio_500_validPairNum_218.txt')
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/textureless_desk_10032018/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_73.txt')
+
     # quantization_maps = read_quantization_map('/media/kevin/MYDATA/cab_front/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_8_err_2000.txt')
     # input_images_dir = "/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/images_demon_2304_3072"
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_4_err_2000.txt')
+    # # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_4_err_2000.txt')
     # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000.txt')
-    input_images_dir = "/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT/images_demon_768_1024"
-    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT/test.txt')
-    quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_16_err_16000.txt')
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_4_err_4000.txt')
+
+    # input_images_dir = "/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT/images_demon_768_1024"
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT/test.txt')
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_16_err_16000.txt')
+
+    input_images_dir = "/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/images_demon_384_512"
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_8_err_8000_survivorRatio_500_validPairNum_254.txt')
+    quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_8_err_8000_survivorRatio_500_validPairNum_254.txt', 'IMG_0928.JPG---IMG_0981.JPG')
+
+    # input_images_dir = "/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/images_demon_2304_3072"
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_2_err_2000_survivorRatio_500_validPairNum_183.txt')
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_10032018/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_274.txt')
 
     for image_pair in quantization_maps.keys():
         print("image_pair to be retrieved is ", image_pair)
@@ -235,7 +315,7 @@ if __name__ == '__main__':
         # print(matches[0].distance, ' ', matches[0].queryIdx, ' ', matches[0].trainIdx)
         dummyMatches = []
         if len(kp2)==len(kp1):
-            subsamplingrate = int(len(kp1)/500)
+            subsamplingrate = int(len(kp1)/1000)
             for match_i in range(len(kp2)):
                 match = cv2.DMatch(match_i, match_i, 0.0)
                 dummyMatches.append(match)
@@ -249,8 +329,17 @@ if __name__ == '__main__':
                 #dummyMatches[:N_MATCHES], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
                 dummyMatches[::subsamplingrate], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-            plt.figure(figsize=(12,6))
+            kp_img = cv2.drawMatches(
+                img1, kp1,
+                img2, kp2,
+                #dummyMatches[:N_MATCHES], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                [], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+            plt.figure(figsize=(12,12))
+            plt.subplot(211)
             plt.imshow(match_img);
+            plt.subplot(212)
+            plt.imshow(kp_img);
             # plt.figure(figsize=(12,6))
             # plt.imshow(concat_images(img1, img2));
 

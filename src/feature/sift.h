@@ -150,9 +150,12 @@ struct SiftMatchingOptions {
 
   // Whether to perform guided matching based on predicted optical flow
   bool optical_flow_guided_matching = false;
+  bool new_optical_flow_guided_matching = false;
   bool only_image_pairs_as_ref = false;
   bool MatchingByPixel = false;
   bool ManualCrossCheck = false;
+  bool ColmapFormat = false;
+
   // image scale factor to match the low-resolution optical-flow DeMoN_prediction_to_h5
   int image_scale_factor = 1;
   int OF_scale_factor = 1;
@@ -245,12 +248,39 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
                         const FeatureDescriptors& descriptors2,
                         const FeatureMatches& quantization_map,
                         FeatureMatches* matches);
+void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const FeatureMatches& quantization_map,
+                        FeatureMatches* matches);
+void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const FeatureMatches& quantization_map,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y,
+                        FeatureMatches* matches);
 void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
                         const FeatureKeypoints& keypoints1,
                         const FeatureKeypoints& keypoints2,
                         const FeatureDescriptors& descriptors1,
                         const FeatureDescriptors& descriptors2,
                         const FeatureMatches& quantization_map,
+                        FeatureMatches* matches);
+void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const FeatureMatches& quantization_map,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x_21,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y_21,
                         FeatureMatches* matches);
 void MatchGuidedSiftFeaturesCPU(const SiftMatchingOptions& match_options,
                                 const FeatureKeypoints& keypoints1,
