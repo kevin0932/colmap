@@ -918,7 +918,7 @@ void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
       for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
       {
           tmpDescriptors1.resize(kp1Idx+1, 128);
-          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
       }
       // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -943,7 +943,7 @@ void OFGuidedMatchSiftFeaturesCPU(const SiftMatchingOptions& match_options,
       for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
       {
           tmpDescriptors2.resize(kp2Idx+1, 128);
-          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
       }
       // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
@@ -1038,7 +1038,7 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
       for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
       {
           tmpDescriptors1.resize(kp1Idx+1, 128);
-          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
       }
       // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -1065,7 +1065,7 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(const SiftMatchingOptions& ma
       for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
       {
           tmpDescriptors2.resize(kp2Idx+1, 128);
-          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
       }
       // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
@@ -1194,7 +1194,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
               {
                   tmpDescriptors1.resize(kp1Idx+1, 128);
-                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
               }
               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -1232,7 +1232,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
               {
                   tmpDescriptors2.resize(kp2Idx+1, 128);
-                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
               }
               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
               // std::cout << "!! tmpDescriptors1.rows() = " << tmpDescriptors1.rows()  << "; tmpDescriptor1.cols()  = " << tmpDescriptors1.cols() << "!! tmpDescriptors2.rows() = " << tmpDescriptors2.rows()  << "; tmpDescriptors2.cols()  = " << tmpDescriptors2.cols() << std::endl;
@@ -1383,7 +1383,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
 //               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
 //               {
 //                   tmpDescriptors1.resize(kp1Idx+1, 128);
-//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
 //               }
 //               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 //
@@ -1421,7 +1421,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
 //               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
 //               {
 //                   tmpDescriptors2.resize(kp2Idx+1, 128);
-//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
 //               }
 //               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 //               // std::cout << "!! tmpDescriptors1.rows() = " << tmpDescriptors1.rows()  << "; tmpDescriptor1.cols()  = " << tmpDescriptors1.cols() << "!! tmpDescriptors2.rows() = " << tmpDescriptors2.rows()  << "; tmpDescriptors2.cols()  = " << tmpDescriptors2.cols() << std::endl;
@@ -1512,7 +1512,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
 //               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
 //               {
 //                   tmpDescriptors1.resize(kp1Idx+1, 128);
-//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
 //               }
 //               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 //
@@ -1552,7 +1552,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
 //               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
 //               {
 //                   tmpDescriptors2.resize(kp2Idx+1, 128);
-//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
 //               }
 //               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 //
@@ -1641,7 +1641,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
 //               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
 //               {
 //                   tmpDescriptors1.resize(kp1Idx+1, 128);
-//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
 //               }
 //               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 //
@@ -1669,7 +1669,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
 //               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
 //               {
 //                   tmpDescriptors2.resize(kp2Idx+1, 128);
-//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
 //               }
 //               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 //
@@ -1737,7 +1737,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
 //               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
 //               {
 //                   tmpDescriptors2.resize(kp2Idx+1, 128);
-//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+//                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
 //               }
 //               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 //
@@ -1761,7 +1761,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(const SiftMatchingOptions& m
 //               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
 //               {
 //                   tmpDescriptors1.resize(kp1Idx+1, 128);
-//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+//                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
 //               }
 //               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 //
@@ -1886,7 +1886,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMatch
       for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
       {
           tmpDescriptors1.resize(kp1Idx+1, 128);
-          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
       }
       // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -1911,7 +1911,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMatch
       for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
       {
           tmpDescriptors2.resize(kp2Idx+1, 128);
-          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
       }
       // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
       // std::cout << "!! tmpDescriptors1.rows() = " << tmpDescriptors1.rows()  << "; tmpDescriptor1.cols()  = " << tmpDescriptors1.cols() << "!! tmpDescriptors2.rows() = " << tmpDescriptors2.rows()  << "; tmpDescriptors2.cols()  = " << tmpDescriptors2.cols() << std::endl;
@@ -2081,7 +2081,7 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
       for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
       {
           tmpDescriptors1.resize(kp1Idx+1, 128);
-          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
       }
       // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -2107,7 +2107,8 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
       for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
       {
           tmpDescriptors2.resize(kp2Idx+1, 128);
-          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+          //tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
       }
       // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
       // std::cout << "!! tmpDescriptors1.rows() = " << tmpDescriptors1.rows()  << "; tmpDescriptor1.cols()  = " << tmpDescriptors1.cols() << "!! tmpDescriptors2.rows() = " << tmpDescriptors2.rows()  << "; tmpDescriptors2.cols()  = " << tmpDescriptors2.cols() << std::endl;
@@ -2271,7 +2272,7 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
               {
                   tmpDescriptors1.resize(kp1Idx+1, 128);
-                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
               }
               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -2295,7 +2296,7 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
               {
                   tmpDescriptors2.resize(kp2Idx+1, 128);
-                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
               }
               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
@@ -2420,7 +2421,7 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
               {
                   tmpDescriptors2.resize(kp2Idx+1, 128);
-                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
               }
               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
@@ -2444,7 +2445,7 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
               {
                   tmpDescriptors1.resize(kp1Idx+1, 128);
-                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
               }
               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -2592,7 +2593,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftM
               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
               {
                   tmpDescriptors1.resize(kp1Idx+1, 128);
-                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
               }
               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -2616,7 +2617,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftM
               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
               {
                   tmpDescriptors2.resize(kp2Idx+1, 128);
-                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
               }
               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
@@ -2720,7 +2721,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftM
               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
               {
                   tmpDescriptors2.resize(kp2Idx+1, 128);
-                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
               }
               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
@@ -2744,7 +2745,7 @@ void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftM
               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
               {
                   tmpDescriptors1.resize(kp1Idx+1, 128);
-                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
               }
               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -2829,7 +2830,7 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase_byPixel(const SiftMatchingOpt
               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
               {
                   tmpDescriptors1.resize(kp1Idx+1, 128);
-                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(kp1Idx,0);
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
               }
               // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
@@ -2847,7 +2848,7 @@ void OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase_byPixel(const SiftMatchingOpt
               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
               {
                   tmpDescriptors2.resize(kp2Idx+1, 128);
-                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
               }
               // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
