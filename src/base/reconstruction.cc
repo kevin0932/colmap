@@ -766,6 +766,7 @@ void Reconstruction::WriteText(const std::string& path) const {
   WriteCamerasText(JoinPaths(path, "cameras.txt"));
   WriteImagesText(JoinPaths(path, "images.txt"));
   WriteRelativePosesText(JoinPaths(path, "relative_poses.txt"));
+  WriteGeoRegistrationText(JoinPaths(path, "geo_registration_positions.txt"));
   WritePoints3DText(JoinPaths(path, "points3D.txt"));
 }
 
@@ -1993,6 +1994,115 @@ Eigen::Matrix3d quatToMatrix(const Eigen::Vector4d qvec)
     return RotMat;
 }
 
+
+void Reconstruction::WriteGeoRegistrationText(const std::string& path) const {
+  std::ofstream file(path, std::ios::trunc);
+  CHECK(file.is_open()) << path;
+
+  file << "# Geo-Registration Position list with one line of data per image view:" << std::endl;
+  file << "# image_name1.jpg X1 Y1 Z1 "
+       << std::endl;
+
+  for (const auto& image1 : images_) {
+    if (!image1.second.IsRegistered()) {
+      continue;
+    }
+
+    // for (const auto& image2 : images_) {
+      // if (!image2.second.IsRegistered()) {
+      //   continue;
+      // }
+      // //if(image1.first==image2.first)
+      //   //continue;
+
+        std::ostringstream line;
+        std::string line_string;
+
+        line << image1.second.Name() << " ";
+
+        const Eigen::Vector4d normalized_qvec1 = NormalizeQuaternion(image1.second.Qvec());
+        // const Eigen::Vector4d normalized_qvec2 = NormalizeQuaternion(image2.second.Qvec());
+        const Eigen::Vector3d tvec1 = image1.second.Tvec();
+        // const Eigen::Vector3d tvec2 = image2.second.Tvec();
+        // Eigen::Vector4d qvec12;
+        // Eigen::Vector3d tvec12;
+        // ComputeRelativePose(normalized_qvec1, tvec1, normalized_qvec2, tvec2, &qvec12, &tvec12);
+
+        const Eigen::Matrix3d rot1 = quatToMatrix(normalized_qvec1);
+        // const Eigen::Matrix3d rot2 = quatToMatrix(normalized_qvec2);
+        // // const Eigen::Matrix3d rot12 = rot2.transpose() * rot1;
+        // // const Eigen::Vector3d t12 = rot1.transpose() * (rot1.transpose()*tvec1 - rot2.transpose()*tvec2);
+        // const Eigen::Matrix3d rot12 = rot2 * rot1.transpose();
+        // const Eigen::Vector3d t12 = rot1 * (rot1.transpose()*tvec1 - rot2.transpose()*tvec2);
+        // if(t12!=tvec12)
+        // {
+        //     std::cout << "check relative poses calculation! t12 = " << t12[0] << " " << t12[1] << " " << t12[2] << "; while tvec12 = " << tvec12[0] << " " << tvec12[1] << " " << tvec12[2] << std::endl;
+        // }
+        // const Eigen::Matrix3d theia_rot1 = quatToMatrix(normalized_qvec1);
+        // const Eigen::Matrix3d theia_rot2 = quatToMatrix(normalized_qvec2);
+        const Eigen::Vector3d theia_c1 = - rot1.transpose()*tvec1;
+        // const Eigen::Vector3d theia_c2 = - rot2.transpose()*tvec2;
+
+        // const Eigen::Matrix3d theia_rot12 = theia_rot2 * theia_rot1.transpose();
+        // const Eigen::Vector3d theia_t12 = theia_rot1*(theia_c2 - theia_c1);
+        // if(theia_t12!=tvec12)
+        // {
+        //     std::cout << "check relative poses calculation! t12 = " << t12[0] << " " << t12[1] << " " << t12[2] << "; while tvec12 = " << tvec12[0] << " " << tvec12[1] << " " << tvec12[2] << std::endl;
+        // }
+        // // QVEC (qw, qx, qy, qz)
+        // line << qvec12[0] << " ";
+        // line << qvec12[1] << " ";
+        // line << qvec12[2] << " ";
+        // line << qvec12[3] << " ";
+
+        // // TVEC
+        // line << tvec12[0] << " ";
+        // line << tvec12[1] << " ";
+        // line << tvec12[2] << " ";
+
+        // Camera Center Positions
+        line << theia_c1[0] << " ";
+        line << theia_c1[1] << " ";
+        line << theia_c1[2];
+
+        // line << image1.second.CameraId() << " ";
+        // line << image1.second.Name() << " ";
+        // line << image2.second.CameraId() << " ";
+        // line << image2.second.Name() << " ";
+
+
+        // // Eigen::Matrix3d RotMat12 = QuaternionToRotationMatrix(qvec12);
+        // Eigen::Matrix3d RotMat12 = rot12;
+        // line << theia_rot12(0,0) << " ";
+        // line << theia_rot12(0,1) << " ";
+        // line << theia_rot12(0,2) << " ";
+        // line << theia_rot12(1,0) << " ";
+        // line << theia_rot12(1,1) << " ";
+        // line << theia_rot12(1,2) << " ";
+        // line << theia_rot12(2,0) << " ";
+        // line << theia_rot12(2,1) << " ";
+        // line << theia_rot12(2,2);
+
+        file << line.str() << std::endl;
+
+        // line.str("");
+        // line.clear();
+        //
+        // for (const Point2D& point2D : image.second.Points2D()) {
+        //   line << point2D.X() << " ";
+        //   line << point2D.Y() << " ";
+        //   if (point2D.HasPoint3D()) {
+        //     line << point2D.Point3DId() << " ";
+        //   } else {
+        //     line << -1 << " ";
+        //   }
+        // }
+        // line_string = line.str();
+        // line_string = line_string.substr(0, line_string.size() - 1);
+        // file << line_string << std::endl;
+    // }
+  }
+}
 
 void Reconstruction::WriteRelativePosesText(const std::string& path) const {
   std::ofstream file(path, std::ios::trunc);

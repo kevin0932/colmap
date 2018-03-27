@@ -276,6 +276,7 @@ class Reconstruction {
   void WriteCamerasText(const std::string& path) const;
   void WriteImagesText(const std::string& path) const;
   void WriteRelativePosesText(const std::string& path) const;
+  void WriteGeoRegistrationText(const std::string& path) const;
   void WritePoints3DText(const std::string& path) const;
   void WriteCamerasBinary(const std::string& path) const;
   void WriteImagesBinary(const std::string& path) const;
