@@ -1996,15 +1996,15 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
   point2D_t DeMoN_OF_Height = 48;
   point2D_t DeMoN_OF_Width = 64;
 
-  int numQuantizationMapping = quantization_map.size();
-  std::unordered_map<point2D_t, point2D_t> mapping1to2;
-  std::unordered_map<point2D_t, point2D_t> mapping2to1;
-  for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
-  {
-      mapping1to2[quantization_map[cnt].point2D_idx1] = quantization_map[cnt].point2D_idx2;
-      mapping2to1[quantization_map[cnt].point2D_idx2] = quantization_map[cnt].point2D_idx1;
-  }
-  std::cout << "convert quantization map to unordered map successfully!" << std::endl;
+  // int numQuantizationMapping = quantization_map.size();
+  // std::unordered_map<point2D_t, point2D_t> mapping1to2;
+  // std::unordered_map<point2D_t, point2D_t> mapping2to1;
+  // for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  // {
+  //     mapping1to2[quantization_map[cnt].point2D_idx1] = quantization_map[cnt].point2D_idx2;
+  //     mapping2to1[quantization_map[cnt].point2D_idx2] = quantization_map[cnt].point2D_idx1;
+  // }
+  // std::cout << "convert quantization map to unordered map successfully!" << std::endl;
 
   for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
   // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
@@ -2051,8 +2051,10 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
       float kp1_lowReso_y2 = ceil(kp1_lowReso_y);
       // float flow_kp1_x = 10;
       // float flow_kp1_y = 10;
-      if(kp1_lowReso_y2>=48 || kp1_lowReso_y1<0 || kp1_lowReso_x2>=64 || kp1_lowReso_x1<0){
-          //std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
+      // DEBUG: Becareful with =!
+      if(kp1_lowReso_y2>48 || kp1_lowReso_y1<0 || kp1_lowReso_x2>64 || kp1_lowReso_x1<0){
+          std::cout << "keypoints1[kp1Idx].x = " << keypoints1[kp1Idx].x << "; keypoints1[kp1Idx].y = " << keypoints1[kp1Idx].y << "; kp1_lowReso_x = " << kp1_lowReso_x << "; kp1_lowReso_y = " << kp1_lowReso_y << "; kp1_lowReso_x1 = " << kp1_lowReso_x1 << "; kp1_lowReso_x2 = " << kp1_lowReso_x2 << "; kp1_lowReso_y1 = " << kp1_lowReso_y1 << "; kp1_lowReso_y2 = " << kp1_lowReso_y2 << std::endl;
+          std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
           continue;
       }
       float flow_kp1_x = 64.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x2), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
@@ -2064,25 +2066,26 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
       //std::cout << "kp1_lowReso_x = " << kp1_lowReso_x << "; kp1_lowReso_y = " << kp1_lowReso_y << "; flow_kp1_x = " << flow_kp1_x << "; flow_kp1_y = " << flow_kp1_y << std::endl;
       float quantizationCenter_y_2 = keypoints1[kp1Idx].y + flow_kp1_y;
       float quantizationCenter_x_2 = keypoints1[kp1Idx].x + flow_kp1_x;
-      if(quantizationCenter_y_2>=48*image_scale_factor || quantizationCenter_y_2<0 || quantizationCenter_x_2>=64*image_scale_factor || quantizationCenter_x_2<0){
-          //std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
-          continue;
-      }
-      //return;
+      // DEBUG: Could be the reason that extremeCase is not expected!
+      // if(quantizationCenter_y_2>48*image_scale_factor || quantizationCenter_y_2<0 || quantizationCenter_x_2>64*image_scale_factor || quantizationCenter_x_2<0){
+      //     //std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
+      //     continue;
+      // }
+      // //return;
 
-      //shareIdKp1Cnt++;
-      std::vector<point2D_t> tmpIndices1;
-      // std::cout << "tmpIndices1 is created!" << std::endl;
+      // //shareIdKp1Cnt++;
+      // std::vector<point2D_t> tmpIndices1;
+      // // std::cout << "tmpIndices1 is created!" << std::endl;
+      //
+      // tmpIndices1.push_back(kp1Idx);
+      // // std::cout << "tmpIndices1.size() = " << tmpIndices1.size() << ", tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << "; quanCenter = (" << retrieved_quantizationCenter_x_1 << ", " << retrieved_quantizationCenter_y_1 << ")" << "; keypoints1[kp1Idx] = (" << keypoints1[kp1Idx].x << ", " << keypoints1[kp1Idx].y << ")" << std::endl;
 
-      tmpIndices1.push_back(kp1Idx);
-      // std::cout << "tmpIndices1.size() = " << tmpIndices1.size() << ", tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << "; quanCenter = (" << retrieved_quantizationCenter_x_1 << ", " << retrieved_quantizationCenter_y_1 << ")" << "; keypoints1[kp1Idx] = (" << keypoints1[kp1Idx].x << ", " << keypoints1[kp1Idx].y << ")" << std::endl;
-
-      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
-      for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
-      {
-          tmpDescriptors1.resize(kp1Idx+1, 128);
-          tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
-      }
+      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1(1, 128);
+      tmpDescriptors1.block<1,128>(0,0) = descriptors1.block<1,128>(kp1Idx,0);
+      // for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+      // {
+      //     tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
+      // }
       // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
       std::vector<point2D_t> tmpIndices2;
@@ -2103,11 +2106,18 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
       // std::cout << "~~ tmpIndices2.size() = " << tmpIndices2.size() << "; keypoints2.size() = " << keypoints2.size() << std::endl;
 
 
-      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+      // Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+      // for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+      // {
+      //     tmpDescriptors2.resize(kp2Idx+1, 128);
+      //     //tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+      //     tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
+      // }
+      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2(tmpIndices2.size(), 128);
       for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
       {
-          tmpDescriptors2.resize(kp2Idx+1, 128);
-          //tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
+          // tmpDescriptors2.resize(kp2Idx+1, 128);
+          // //tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(kp2Idx,0);
           tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
       }
       // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
@@ -2138,7 +2148,8 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
       for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches.size(); resultCnt++)
       {
           FeatureMatch ConvertedMatch;
-          ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches[resultCnt].point2D_idx1];
+          // ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches[resultCnt].point2D_idx1];
+          ConvertedMatch.point2D_idx1 = kp1Idx;
           ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches[resultCnt].point2D_idx2];
           matches->push_back(ConvertedMatch);
       }
@@ -2146,6 +2157,7 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
   std::cout << "@@@ Final raw match number => matches->size() = " << matches->size() << "; keypoints1.size() = " << keypoints1.size() << std::endl;
 }
 
+// should also be simplified and modifed!
 void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
                           const FeatureKeypoints& keypoints1,
                           const FeatureKeypoints& keypoints2,
@@ -2166,15 +2178,15 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
   point2D_t DeMoN_OF_Height = 48;
   point2D_t DeMoN_OF_Width = 64;
 
-  int numQuantizationMapping = quantization_map.size();
-  std::unordered_map<point2D_t, point2D_t> mapping1to2;
-  std::unordered_map<point2D_t, point2D_t> mapping2to1;
-  for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
-  {
-      mapping1to2[quantization_map[cnt].point2D_idx1] = quantization_map[cnt].point2D_idx2;
-      mapping2to1[quantization_map[cnt].point2D_idx2] = quantization_map[cnt].point2D_idx1;
-  }
-  std::cout << "convert quantization map to unordered map successfully!" << std::endl;
+  // int numQuantizationMapping = quantization_map.size();
+  // std::unordered_map<point2D_t, point2D_t> mapping1to2;
+  // std::unordered_map<point2D_t, point2D_t> mapping2to1;
+  // for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  // {
+  //     mapping1to2[quantization_map[cnt].point2D_idx1] = quantization_map[cnt].point2D_idx2;
+  //     mapping2to1[quantization_map[cnt].point2D_idx2] = quantization_map[cnt].point2D_idx1;
+  // }
+  // std::cout << "convert quantization map to unordered map successfully!" << std::endl;
 
   //for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
   //{
@@ -2187,73 +2199,23 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
       for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
       // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
       {
-          // // // std::cout << "image_scale_factor = " << image_scale_factor << "; OF_scale_factor = " << OF_scale_factor << std::endl;
-          // // point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
-          // // // std::cout << "tmpQuantizationIdx1 = " << tmpQuantizationIdx1 << std::endl;
-          // // //int shareIdKp1Cnt = 0;
-          // // // point2D_t mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
-          // // point2D_t mappedQuantizationIdx2;
-          // // if(mapping1to2.count(tmpQuantizationIdx1) > 0)
-          // // {
-          // //     mappedQuantizationIdx2 = mapping1to2[tmpQuantizationIdx1];
-          // // } else {
-          // //     continue;
-          // // }
-          // point2D_t tmpQuantizationIdx1 = 0;
-          // point2D_t mappedQuantizationIdx2;
-          // float retrieved_quantizationCenter_x_1;
-          // float retrieved_quantizationCenter_y_1;
-          // float tmpMinSquareDist = 10000.0;
-          // bool NNflag = false;
-          // // for(auto element : mapping1to2)
-          // // for(point2D_t key12 : keys1to2)
-          // for(std::unordered_map<point2D_t,point2D_t>::iterator it = mapping1to2.begin(); it != mapping1to2.end(); ++it)
-          // {
-          //     point2D_t tmpIdx1 = it->first;
-          //     float quantizationCenter_y_1 = floor(tmpIdx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
-          //     float quantizationCenter_x_1 = image_scale_factor * (tmpIdx1-floor(tmpIdx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
-          //     float tmpSquareDist = (pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2));
-          //     if(tmpSquareDist<=tmpMinSquareDist)
-          //     {
-          //         tmpQuantizationIdx1 = tmpIdx1;
-          //         tmpMinSquareDist = tmpSquareDist;
-          //         NNflag = true;
-          //         mappedQuantizationIdx2 = it->second;
-          //         retrieved_quantizationCenter_x_1 = quantizationCenter_x_1;
-          //         retrieved_quantizationCenter_y_1 = quantizationCenter_y_1;
-          //     }
-          // }
-          // if(NNflag==false || tmpMinSquareDist>5*image_scale_factor*image_scale_factor)
-          // {
-          //     // std::cout << "skip this kp1, no NN quantization center could be retrieved!" << std::endl;
-          //     continue;
-          // }
-
           float kp1_lowReso_x = (keypoints1[kp1Idx].x / float(image_scale_factor));
           float kp1_lowReso_y = (keypoints1[kp1Idx].y / float(image_scale_factor));
           float kp1_lowReso_x1 = floor(kp1_lowReso_x);
           float kp1_lowReso_x2 = ceil(kp1_lowReso_x);
           float kp1_lowReso_y1 = floor(kp1_lowReso_y);
           float kp1_lowReso_y2 = ceil(kp1_lowReso_y);
-          // float flow_kp1_x = 10;
-          // float flow_kp1_y = 10;
-          if(kp1_lowReso_y2>=48 || kp1_lowReso_y1<0 || kp1_lowReso_x2>=64 || kp1_lowReso_x1<0){
-              //std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
+          // DEBUG: Becareful with =!
+          if(kp1_lowReso_y2>48 || kp1_lowReso_y1<0 || kp1_lowReso_x2>64 || kp1_lowReso_x1<0){
+              std::cout << "keypoints1[kp1Idx].x = " << keypoints1[kp1Idx].x << "; keypoints1[kp1Idx].y = " << keypoints1[kp1Idx].y << "; kp1_lowReso_x = " << kp1_lowReso_x << "; kp1_lowReso_y = " << kp1_lowReso_y << "; kp1_lowReso_x1 = " << kp1_lowReso_x1 << "; kp1_lowReso_x2 = " << kp1_lowReso_x2 << "; kp1_lowReso_y1 = " << kp1_lowReso_y1 << "; kp1_lowReso_y2 = " << kp1_lowReso_y2 << std::endl;
+              std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
               continue;
           }
           float flow_kp1_x = 64.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x2), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
           float flow_kp1_y = 48.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_y(kp1_lowReso_y1,kp1_lowReso_x1), optical_flow_y(kp1_lowReso_y2,kp1_lowReso_x1), optical_flow_y(kp1_lowReso_y1,kp1_lowReso_x2), optical_flow_y(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
-          //float flow_kp1_x = 64.0 * image_scale_factor * computeBilinearInterpolation(0, 1, 0, 1, kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
-          //float flow_kp1_y = 48.0 * image_scale_factor * computeBilinearInterpolation(0, 1, 0, 1, kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
-          //std::cout << "kp1_lowReso_x1 = " << kp1_lowReso_x1 << "; kp1_lowReso_x2 = " << kp1_lowReso_x2 << "; kp1_lowReso_y1 = " << kp1_lowReso_y1 << "; kp1_lowReso_y2 = " << kp1_lowReso_y2 << std::endl;
 
-          //std::cout << "kp1_lowReso_x = " << kp1_lowReso_x << "; kp1_lowReso_y = " << kp1_lowReso_y << "; flow_kp1_x = " << flow_kp1_x << "; flow_kp1_y = " << flow_kp1_y << std::endl;
           float quantizationCenter_y_2 = keypoints1[kp1Idx].y + flow_kp1_y;
           float quantizationCenter_x_2 = keypoints1[kp1Idx].x + flow_kp1_x;
-          if(quantizationCenter_y_2>=48*image_scale_factor || quantizationCenter_y_2<0 || quantizationCenter_x_2>=64*image_scale_factor || quantizationCenter_x_2<0){
-              //std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
-              continue;
-          }
 
           // float quantizationCenter_y_1 = floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
           // float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
@@ -2268,13 +2230,8 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
 
               tmpIndices1.push_back(kp1Idx);
 
-              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
-              for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
-              {
-                  tmpDescriptors1.resize(kp1Idx+1, 128);
-                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
-              }
-              // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1(1, 128);
+              tmpDescriptors1.block<1,128>(0,0) = descriptors1.block<1,128>(kp1Idx,0);
 
               std::vector<point2D_t> tmpIndices2;
               for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
@@ -2292,13 +2249,11 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
               }
               // std::cout << "~~ tmpIndices2.size() = " << tmpIndices2.size() << std::endl;
 
-              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2(tmpIndices2.size(), 128);
               for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
               {
-                  tmpDescriptors2.resize(kp2Idx+1, 128);
                   tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
               }
-              // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
 
               // // remember to normalize the descriptors so that colmap threshold params can be used!
               // Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
@@ -2321,10 +2276,8 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
               for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches12.size(); resultCnt++)
               {
                   FeatureMatch ConvertedMatch;
-                  ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches12[resultCnt].point2D_idx1];
+                  ConvertedMatch.point2D_idx1 = kp1Idx;
                   ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches12[resultCnt].point2D_idx2];
-                  // // matches->push_back(ConvertedMatch);
-                  // matches1to2.push_back(ConvertedMatch);
                   matches12[ConvertedMatch.point2D_idx1] = ConvertedMatch.point2D_idx2;
                   num_matches12++;
               }
@@ -2344,53 +2297,14 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
 
       for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
       {
-          // // point2D_t tmpQuantizationIdx2 = (keypoints2[kp2Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints2[kp2Idx].y / image_scale_factor);
-          // // //int shareIdKp2Cnt = 0;
-          // // // point2D_t mappedQuantizationIdx1 = mapping2to1[tmpQuantizationIdx2];
-          // // point2D_t mappedQuantizationIdx1;
-          // // if(mapping2to1.count(tmpQuantizationIdx2) > 0)
-          // // {
-          // //     mappedQuantizationIdx1 = mapping2to1[tmpQuantizationIdx2];
-          // // } else {
-          // //     continue;
-          // // }
-          // point2D_t tmpQuantizationIdx2 = 0;
-          // point2D_t mappedQuantizationIdx1;
-          // float retrieved_quantizationCenter_x_2;
-          // float retrieved_quantizationCenter_y_2;
-          // float tmpMinSquareDist = 10000.0;
-          // bool NNflag = false;
-          // // for(auto element : mapping1to2)
-          // // for(point2D_t key12 : keys1to2)
-          // for(std::unordered_map<point2D_t,point2D_t>::iterator it = mapping2to1.begin(); it != mapping2to1.end(); ++it)
-          // {
-          //     point2D_t tmpIdx2 = it->first;
-          //     float quantizationCenter_y_2 = floor(tmpIdx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
-          //     float quantizationCenter_x_2 = image_scale_factor * (tmpIdx2-floor(tmpIdx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
-          //     float tmpSquareDist = (pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2));
-          //     if(tmpSquareDist<=tmpMinSquareDist)
-          //     {
-          //         tmpQuantizationIdx2 = tmpIdx2;
-          //         tmpMinSquareDist = tmpSquareDist;
-          //         NNflag = true;
-          //         mappedQuantizationIdx1 = it->second;
-          //         retrieved_quantizationCenter_x_2 = quantizationCenter_x_2;
-          //         retrieved_quantizationCenter_y_2 = quantizationCenter_y_2;
-          //     }
-          // }
-          // if(NNflag==false || tmpMinSquareDist>5*image_scale_factor*image_scale_factor)
-          // {
-          //     // std::cout << "skip this kp1, no NN quantization center could be retrieved!" << std::endl;
-          //     continue;
-          // }
           float kp2_lowReso_x = (keypoints2[kp2Idx].x / float(image_scale_factor));
           float kp2_lowReso_y = (keypoints2[kp2Idx].y / float(image_scale_factor));
           float kp2_lowReso_x1 = floor(kp2_lowReso_x);
           float kp2_lowReso_x2 = ceil(kp2_lowReso_x);
           float kp2_lowReso_y1 = floor(kp2_lowReso_y);
           float kp2_lowReso_y2 = ceil(kp2_lowReso_y);
-          if(kp2_lowReso_y2>=48 || kp2_lowReso_y1<0 || kp2_lowReso_x2>=64 || kp2_lowReso_x1<0){
-              //std::cout << "###### skip this kp2 since optical flow guidance is out of image border!" << std::endl;
+          if(kp2_lowReso_y2>48 || kp2_lowReso_y1<0 || kp2_lowReso_x2>64 || kp2_lowReso_x1<0){
+              std::cout << "###### skip this kp2 since optical flow guidance is out of image border!" << std::endl;
               continue;
           }
           float flow_kp2_x = 64.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_x_21(kp2_lowReso_y1,kp2_lowReso_x1), optical_flow_x_21(kp2_lowReso_y2,kp2_lowReso_x1), optical_flow_x_21(kp2_lowReso_y1,kp2_lowReso_x2), optical_flow_x_21(kp2_lowReso_y2,kp2_lowReso_x2), kp2_lowReso_x1, kp2_lowReso_x2, kp2_lowReso_y1, kp2_lowReso_y2, kp2_lowReso_x, kp2_lowReso_y);
@@ -2400,10 +2314,11 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
           //std::cout << "kp2_lowReso_x = " << kp2_lowReso_x << "; kp2_lowReso_y = " << kp2_lowReso_y << "; flow_kp2_x = " << flow_kp2_x << "; flow_kp2_y = " << flow_kp2_y << std::endl;
           float quantizationCenter_y_1 = keypoints2[kp2Idx].y + flow_kp2_y;
           float quantizationCenter_x_1 = keypoints2[kp2Idx].x + flow_kp2_x;
-          if(quantizationCenter_y_1>=48*image_scale_factor || quantizationCenter_y_1<0 || quantizationCenter_x_1>=64*image_scale_factor || quantizationCenter_x_1<0){
-              //std::cout << "###### skip this kp2 since optical flow guidance is out of image border!" << std::endl;
-              continue;
-          }
+
+          // if(quantizationCenter_y_1>=48*image_scale_factor || quantizationCenter_y_1<0 || quantizationCenter_x_1>=64*image_scale_factor || quantizationCenter_x_1<0){
+          //     //std::cout << "###### skip this kp2 since optical flow guidance is out of image border!" << std::endl;
+          //     continue;
+          // }
           // float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
           // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
           // // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
@@ -2417,37 +2332,31 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
 
               tmpIndices2.push_back(kp2Idx);
 
-              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2;
-              for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
-              {
-                  tmpDescriptors2.resize(kp2Idx+1, 128);
-                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
-              }
-              // std::cout << "end of loop updating descriptor2 subblocks ^" << std::endl;
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2(1, 128);
+              tmpDescriptors2.block<1,128>(0,0) = descriptors2.block<1,128>(kp2Idx,0);
 
               std::vector<point2D_t> tmpIndices1;
               for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
               {
-                  // point2D_t tmpQuantizationIdx1 = (keypoints1[kp1Idx].x / image_scale_factor) + OF_scale_factor * DeMoN_OF_Width * (keypoints1[kp1Idx].y / image_scale_factor);
-                  // float quantizationCenter_y_1 = floor(mappedQuantizationIdx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
-                  // float quantizationCenter_x_1 = image_scale_factor * (mappedQuantizationIdx1-floor(mappedQuantizationIdx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
-                  // // float quantizationCenter_x_1 = image_scale_factor * (mappedQuantizationIdx1-quantizationCenter_y_1*(DeMoN_OF_Width * OF_scale_factor));
                   if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2))<=uncertainty_radius*uncertainty_radius)
-                  // if(tmpQuantizationIdx1==mappedQuantizationIdx1)
                   {
-                      // tmpDescriptors1 << descriptors1.block<1,128>(kp1Idx,0);
                       tmpIndices1.push_back(kp1Idx);
                   }
               }
               // std::cout << "~~ tmpIndices1.size() = " << tmpIndices1.size() << std::endl;
 
-              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+              // Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+              // for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+              // {
+              //     tmpDescriptors1.resize(kp1Idx+1, 128);
+              //     tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
+              // }
+              // // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1(tmpIndices1.size(), 128);
               for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
               {
-                  tmpDescriptors1.resize(kp1Idx+1, 128);
                   tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
               }
-              // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
 
               const Eigen::MatrixXi dists21 = ComputeSiftDistanceMatrix(
                   nullptr, nullptr, tmpDescriptors2, tmpDescriptors1, nullptr);
@@ -2464,7 +2373,8 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
               {
                   FeatureMatch ConvertedMatch;
                   ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches21[resultCnt].point2D_idx2];
-                  ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches21[resultCnt].point2D_idx1];
+                  // ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches21[resultCnt].point2D_idx1];
+                  ConvertedMatch.point2D_idx2 = kp2Idx;
                   // // matches->push_back(ConvertedMatch);
                   // matches2to1.push_back(ConvertedMatch);
                   matches21[ConvertedMatch.point2D_idx2] = ConvertedMatch.point2D_idx1;

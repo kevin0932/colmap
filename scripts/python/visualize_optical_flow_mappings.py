@@ -171,10 +171,18 @@ def pil_grid(images, max_horiz=np.iinfo(int).max):
 
 #image_height = 48 * 8
 #image_width = 64 * 8
-image_scale_factor = 1
-OF_scale_factor = 8
+image_scale_factor = 48
+OF_scale_factor = 1
 image_height = 48 * OF_scale_factor
 image_width = 64 * OF_scale_factor
+
+ROI_vis = True
+ROI_xMin = 500
+ROI_xMax = 1200
+ROI_yMin = 1200
+ROI_yMax = 1800
+
+
 if __name__ == '__main__':
 
     print ('OpenCV Version (should be 3.1.0, with nonfree packages installed, for this tutorial):')
@@ -217,9 +225,15 @@ if __name__ == '__main__':
     # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT/test.txt')
     # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_16_err_16000.txt')
 
-    input_images_dir = "/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/images_demon_384_512"
-    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_8_err_8000_survivorRatio_500_validPairNum_254.txt')
-    quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_8_err_8000_survivorRatio_500_validPairNum_254.txt', 'IMG_0928.JPG---IMG_0981.JPG')
+    # input_images_dir = "/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/images_demon_384_512"
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_8_err_8000_survivorRatio_500_validPairNum_254.txt')
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_8_err_8000_survivorRatio_500_validPairNum_254.txt', 'IMG_0928.JPG---IMG_0981.JPG')
+
+
+    input_images_dir = "/media/kevin/MYDATA/27032018/labwall_occlusion/DenseSIFT/resized_images_2304_3072"
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt', 'IMG_0928.JPG---IMG_0981.JPG')
+    quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
+
 
     # input_images_dir = "/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/images_demon_2304_3072"
     # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
@@ -264,6 +278,7 @@ if __name__ == '__main__':
         #print(quantization_map)
         print("quantization_map[0,:] = ", quantization_map[0,:])
         quantization_map = quantization_map.astype(np.uint32)
+        ROI_indices = []
         kp1 = []
         for cnt in range(quantization_map.shape[0]):
             quan_id1 = quantization_map[cnt,0]
@@ -273,6 +288,8 @@ if __name__ == '__main__':
             #x1 = quan_id1 - image_width*y1
             x1 = quan_id1 % image_width
             y1 = int((quan_id1-x1) / image_width)
+            if x1>=ROI_xMin*OF_scale_factor/image_scale_factor and x1<=ROI_xMax*OF_scale_factor/image_scale_factor and y1>=ROI_yMin*OF_scale_factor/image_scale_factor and y1<=ROI_yMax*OF_scale_factor/image_scale_factor:
+                ROI_indices.append(cnt)
             #print(quan_id1, " ", x1, " ", y1)
             kp = cv2.KeyPoint(x1*image_scale_factor, y1*image_scale_factor, 20, 1, 10)
             kp1.append(kp)
@@ -304,7 +321,7 @@ if __name__ == '__main__':
         #matches = sorted(matches, key = lambda x:x.distance)
 
         ## draw the top N matches
-        N_MATCHES = 100
+        N_MATCHES = 500
 
         # match_img = cv2.drawMatches(
         #     img1, img1_kp,
@@ -314,6 +331,7 @@ if __name__ == '__main__':
         # print(len(matches))
         # print(matches[0].distance, ' ', matches[0].queryIdx, ' ', matches[0].trainIdx)
         dummyMatches = []
+        dummyMatchesROI = []
         if len(kp2)==len(kp1):
             subsamplingrate = int(len(kp1)/1000)
             for match_i in range(len(kp2)):
@@ -328,6 +346,24 @@ if __name__ == '__main__':
                 img2, kp2,
                 #dummyMatches[:N_MATCHES], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
                 dummyMatches[::subsamplingrate], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                # dummyMatches[ROI_indices[0],:], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+            if ROI_vis==True:
+                subsamplingrateROI = int(len(ROI_indices)/100)
+                for ROIidx in range(len(ROI_indices)):
+                    match = cv2.DMatch(ROI_indices[ROIidx], ROI_indices[ROIidx], 0.0)
+                    dummyMatchesROI.append(match)
+                print(len(dummyMatchesROI))
+                if subsamplingrateROI<=0:
+                    subsamplingrateROI=1
+
+                if len(ROI_indices)>=1:
+                    match_img = cv2.drawMatches(
+                        img1, kp1,
+                        img2, kp2,
+                        dummyMatchesROI[::subsamplingrateROI], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                else:
+                    continue
 
             kp_img = cv2.drawMatches(
                 img1, kp1,
