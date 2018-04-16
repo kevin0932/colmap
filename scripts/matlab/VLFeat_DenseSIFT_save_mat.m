@@ -9,12 +9,12 @@
 % directory = '/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT';
 % directory = '/media/kevin/MYDATA/cab_front/DenseSIFT';
 % directory = '/media/kevin/MYDATA/Datasets_14032018/CNB_labwall/DenseSIFT';
-directory = '/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT';
+% directory = '/media/kevin/MYDATA/southbuilding_768_1024/DenseSIFT';
 % directory = '/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT';
 % img_dir = fullfile(directory, 'images_demon_96_128');
 % directory = '/media/kevin/MYDATA/textureless_desk_10032018/DenseSIFT';
 % img_dir = fullfile(directory, 'images_demon_192_256');
-img_dir = fullfile(directory, 'images_demon_768_1024');
+% img_dir = fullfile(directory, 'images_demon_768_1024');
 % img_dir = fullfile(directory, 'images_demon_2304_3072');
 % img_dir = fullfile(directory, 'images_demon_1536_2048');
 % img_dir = fullfile(directory, 'images_demon_96_128');
@@ -23,12 +23,47 @@ img_dir = fullfile(directory, 'images_demon_768_1024');
 % mat_out_dir = fullfile(directory, 'mat_denseSIFT_2304_3072');
 % mat_out_dir = fullfile(directory, 'mat_denseSIFT_1536_2048');
 % mat_out_dir = fullfile(directory, 'mat_sparseSIFT_1536_2048');
-mat_out_dir = fullfile(directory, 'mat_sparseSIFT_768_1024');
+% mat_out_dir = fullfile(directory, 'mat_sparseSIFT_768_1024');
 % mat_out_dir = fullfile(directory, 'mat_sparseSIFT_2304_3072');
+
+% directory = '/home/kevin/ThesisDATA/NewLabWall/DenseSIFT/';
+% directory = '/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT';
+% img_dir = fullfile(directory, 'images_demon_2304_3072');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_2304_3072');
+
+% directory = '/home/kevin/ThesisDATA/NewLabWall_Original/DenseSIFT/';
+% img_dir = fullfile(directory, 'images_demon_768_1024');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_768_1024_8_3_5');
+% img_dir = fullfile(directory, 'images_demon_384_512');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_384_512');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_384_512_4_1_1');
+% img_dir = fullfile(directory, 'images_demon_192_256');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_192_256');
+
+% directory = '/home/kevin/ThesisDATA/RGBD_Datasets/rgbd_dataset_freiburg3_nostructure_notexture_near_withloop/cleaned/';
+% img_dir = fullfile(directory, 'rgb');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_480_640_8_3_2');
+% % mat_out_dir = fullfile(directory, 'mat_denseSIFT_480_640_8_3_1');
+
+% directory = '/home/kevin/ThesisDATA/Board/DenseSIFT';
+% img_dir = fullfile(directory, 'resized_images_2304_3072');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_2304_3072');
+
+directory = '/home/kevin/ThesisDATA/LabCorner/DenseSIFT';
+img_dir = fullfile(directory, 'resized_images_2304_3072');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_2304_3072_8_3_24');
+mat_out_dir = fullfile(directory, 'mat_denseSIFT_2304_3072_8_3_12');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_2304_3072_8_3_8');
+
+% directory = '/media/kevin/MYDATA/southbuilding_384_512/DenseSIFT';
+% img_dir = fullfile(directory, 'images_demon_384_512');
+% mat_out_dir = fullfile(directory, 'mat_denseSIFT_384_512');
+
 image_rgb_info  = dir( fullfile(img_dir, '*.JPG'));
+% image_rgb_info  = dir( fullfile(img_dir, '*.png'));
 image_rgb_filenames = fullfile(img_dir, {image_rgb_info.name} );
 addpath('/home/kevin/devel_lib/SfM/colmap/scripts/matlab');
-%% loop over each image to compute dense SIFT and save corresponding .mat file
+% % loop over each image to compute dense SIFT and save corresponding .mat file
 for i=1:length(image_rgb_filenames)   
 % for i=1:1  
 % for i=20:length(image_rgb_filenames)   

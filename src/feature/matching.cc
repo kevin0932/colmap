@@ -674,8 +674,11 @@ void CrossCheckOFGuidedSiftCPUFeatureMatcher::Run() {
       // } else {
       //     NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, optical_flow_x, optical_flow_y, optical_flow_x_21, optical_flow_y_21, &data.matches);
       // }
-      NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, optical_flow_x, optical_flow_y, optical_flow_x_21, optical_flow_y_21, &data.matches);
 
+      // // For DEBUG purpose
+      // NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(options_, keypoints2, keypoints1, descriptors2, descriptors1, quantization_map, optical_flow_x_21, optical_flow_y_21, optical_flow_x, optical_flow_y, &data.matches);
+
+      NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, optical_flow_x, optical_flow_y, optical_flow_x_21, optical_flow_y_21, &data.matches);
 
       // // OFGuidedMatchSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
       // if(options_.MatchingByPixel){

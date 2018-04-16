@@ -176,7 +176,7 @@ OF_scale_factor = 1
 image_height = 48 * OF_scale_factor
 image_width = 64 * OF_scale_factor
 
-ROI_vis = True
+ROI_vis = False
 ROI_xMin = 500
 ROI_xMax = 1200
 ROI_yMin = 1200
@@ -230,9 +230,16 @@ if __name__ == '__main__':
     # quantization_maps = read_quantization_map('/media/kevin/MYDATA/Datasets_14032018/CalibBoard/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_8_err_8000_survivorRatio_500_validPairNum_254.txt', 'IMG_0928.JPG---IMG_0981.JPG')
 
 
-    input_images_dir = "/media/kevin/MYDATA/27032018/labwall_occlusion/DenseSIFT/resized_images_2304_3072"
-    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt', 'IMG_0928.JPG---IMG_0981.JPG')
-    quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
+    # input_images_dir = "/media/kevin/MYDATA/27032018/labwall_occlusion/DenseSIFT/resized_images_2304_3072"
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt', 'IMG_0928.JPG---IMG_0981.JPG')
+    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
+
+    input_images_dir = "/home/kevin/ThesisDATA/CVG_Capitole/DenseSIFT/resized_images_2304_3072"
+    quantization_maps = read_quantization_map('/home/kevin/ThesisDATA/CVG_Capitole/demon_prediction_exhaustive_pairs/OrderEnforced_CrossCheckSurvivor_full_quantization_map_OFscale_1_err_5000_survivorRatio_500_validPairNum_276.txt', 'P1000689.JPG---P1000721.JPG')
+
+    # input_images_dir = "/home/kevin/ThesisDATA/labwall/DenseSIFT/images_demon_2304_3072"
+    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt', 'IMG_0928.JPG---IMG_0981.JPG')
+    # quantization_maps = read_quantization_map('/home/kevin/ThesisDATA/labwall/demon_prediction_20_30_060/OrderEnforced_full_quantization_map_OFscale_1_err_10000000_survivorRatio_0_validPairNum_172.txt')
 
 
     # input_images_dir = "/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/images_demon_2304_3072"
@@ -333,7 +340,7 @@ if __name__ == '__main__':
         dummyMatches = []
         dummyMatchesROI = []
         if len(kp2)==len(kp1):
-            subsamplingrate = int(len(kp1)/1000)
+            subsamplingrate = int(len(kp1)/200)
             for match_i in range(len(kp2)):
                 match = cv2.DMatch(match_i, match_i, 0.0)
                 dummyMatches.append(match)
@@ -349,13 +356,16 @@ if __name__ == '__main__':
                 # dummyMatches[ROI_indices[0],:], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
             if ROI_vis==True:
-                subsamplingrateROI = int(len(ROI_indices)/100)
+                print("len(ROI_indices) = ", len(ROI_indices))
+                subsamplingrateROI = int(len(ROI_indices)/15)
+                print("subsamplingrateROI = ", subsamplingrateROI)
                 for ROIidx in range(len(ROI_indices)):
                     match = cv2.DMatch(ROI_indices[ROIidx], ROI_indices[ROIidx], 0.0)
                     dummyMatchesROI.append(match)
                 print(len(dummyMatchesROI))
                 if subsamplingrateROI<=0:
                     subsamplingrateROI=1
+                print(len(dummyMatchesROI[::subsamplingrateROI]))
 
                 if len(ROI_indices)>=1:
                     match_img = cv2.drawMatches(
