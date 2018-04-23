@@ -81,7 +81,7 @@ class OFGuidedMatchingTab : public FeatureMatchingTab {
   void Run() override;
 
  private:
-  std::string match_list_path_;
+  std::string optical_flow_path_;
   size_t image_scale_factor_;
   float uncertainty_radius_;
   size_t OF_scale_factor_;
@@ -320,12 +320,12 @@ void CustomMatchingTab::Run() {
 OFGuidedMatchingTab::OFGuidedMatchingTab(QWidget* parent, OptionManager* options)
     : FeatureMatchingTab(parent, options) {
   match_type_cb_ = new QComboBox(this);
-  match_type_cb_->addItem(QString("Image pairs and quantization maps"));
+  match_type_cb_->addItem(QString("Image pairs and optical flow maps"));
   // match_type_cb_->addItem(QString("Raw feature matches"));
   // match_type_cb_->addItem(QString("Inlier feature matches"));
   grid_layout_->addWidget(match_type_cb_, grid_layout_->rowCount(), 1);
 
-  AddOptionFilePath(&match_list_path_, "match_list_path");
+  AddOptionFilePath(&optical_flow_path_, "optical_flow_path_");
   // AddOptionBool(&only_image_pairs_as_ref_, "only_image_pairs_as_ref is enabled or not");
   // AddOptionInt(&image_scale_factor_, "image_scale_factor", -1);
   AddSpacer();
@@ -335,7 +335,7 @@ OFGuidedMatchingTab::OFGuidedMatchingTab(QWidget* parent, OptionManager* options
 void OFGuidedMatchingTab::Run() {
   WriteOptions();
 
-  if (!ExistsFile(match_list_path_)) {
+  if (!ExistsFile(optical_flow_path_)) {
     QMessageBox::critical(this, "", tr("Path does not exist!"));
     return;
   }
@@ -343,13 +343,13 @@ void OFGuidedMatchingTab::Run() {
   Thread* matcher = nullptr;
 
   OFGuidedImagePairsMatchingOptions matcher_options;
-  matcher_options.match_list_path = match_list_path_;
+  matcher_options.optical_flow_path = optical_flow_path_;
   // matcher_options.image_scale_factor = image_scale_factor_;
   // matcher_options.only_image_pairs_as_ref = only_image_pairs_as_ref_;
   matcher = new OFGuidedImagePairsFeatureMatcher( matcher_options,
                         *options_->sift_matching, *options_->database_path);
 
-  thread_control_widget_->StartThread("OF-Guided Matching...", true, matcher);
+  thread_control_widget_->StartThread("Confidence-Adaptive OF-Guided Matching...", true, matcher);
 }
 
 NewOFGuidedMatchingTab::NewOFGuidedMatchingTab(QWidget* parent, OptionManager* options)

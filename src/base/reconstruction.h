@@ -208,9 +208,12 @@ class Reconstruction {
 
   // Compute statistics for scene.
   size_t ComputeNumObservations() const;
+  size_t ComputeNumFeatures() const;
   double ComputeMeanTrackLength() const;
   double ComputeMeanObservationsPerRegImage() const;
   double ComputeMeanReprojectionError() const;
+  // KEVIN
+  double ComputeMean2DFeaturePoints() const;
 
   // Read data from text or binary file. Prefer binary data if it exists.
   void Read(const std::string& path);

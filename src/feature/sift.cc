@@ -2408,6 +2408,384 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
 }
 
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void AdaptiveNewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMatchingOptions& match_options,
+                          const FeatureKeypoints& keypoints1,
+                          const FeatureKeypoints& keypoints2,
+                          const FeatureDescriptors& descriptors1,
+                          const FeatureDescriptors& descriptors2,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_x,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_y,
+                          FeatureMatches* matches) {
+  CHECK(match_options.Check());
+  CHECK_NOTNULL(matches);
+
+  double uncertainty_radius = match_options.uncertainty_radius;
+  point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t OF_scale_factor = match_options.OF_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t DeMoN_OF_Height = 48;
+  point2D_t DeMoN_OF_Width = 64;
+
+  for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+  {
+      float kp1_lowReso_x = (keypoints1[kp1Idx].x / float(image_scale_factor));
+      float kp1_lowReso_y = (keypoints1[kp1Idx].y / float(image_scale_factor));
+      float kp1_lowReso_x1 = floor(kp1_lowReso_x);
+      float kp1_lowReso_x2 = ceil(kp1_lowReso_x);
+      float kp1_lowReso_y1 = floor(kp1_lowReso_y);
+      float kp1_lowReso_y2 = ceil(kp1_lowReso_y);
+
+      // DEBUG: Becareful with =!
+      if(kp1_lowReso_y2>48 || kp1_lowReso_y1<0 || kp1_lowReso_x2>64 || kp1_lowReso_x1<0){
+          std::cout << "keypoints1[kp1Idx].x = " << keypoints1[kp1Idx].x << "; keypoints1[kp1Idx].y = " << keypoints1[kp1Idx].y << "; kp1_lowReso_x = " << kp1_lowReso_x << "; kp1_lowReso_y = " << kp1_lowReso_y << "; kp1_lowReso_x1 = " << kp1_lowReso_x1 << "; kp1_lowReso_x2 = " << kp1_lowReso_x2 << "; kp1_lowReso_y1 = " << kp1_lowReso_y1 << "; kp1_lowReso_y2 = " << kp1_lowReso_y2 << std::endl;
+          std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
+          continue;
+      }
+      float flow_kp1_x = 64.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x2), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+      float flow_kp1_y = 48.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_y(kp1_lowReso_y1,kp1_lowReso_x1), optical_flow_y(kp1_lowReso_y2,kp1_lowReso_x1), optical_flow_y(kp1_lowReso_y1,kp1_lowReso_x2), optical_flow_y(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+      //float flow_kp1_x = 64.0 * image_scale_factor * computeBilinearInterpolation(0, 1, 0, 1, kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+      //float flow_kp1_y = 48.0 * image_scale_factor * computeBilinearInterpolation(0, 1, 0, 1, kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+      //std::cout << "kp1_lowReso_x1 = " << kp1_lowReso_x1 << "; kp1_lowReso_x2 = " << kp1_lowReso_x2 << "; kp1_lowReso_y1 = " << kp1_lowReso_y1 << "; kp1_lowReso_y2 = " << kp1_lowReso_y2 << std::endl;
+
+      float flowconf_kp1_x = computeBilinearInterpolation(flowconf_x(kp1_lowReso_y1,kp1_lowReso_x1), flowconf_x(kp1_lowReso_y2,kp1_lowReso_x1), flowconf_x(kp1_lowReso_y1,kp1_lowReso_x2), flowconf_x(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+      float flowconf_kp1_y = computeBilinearInterpolation(flowconf_y(kp1_lowReso_y1,kp1_lowReso_x1), flowconf_y(kp1_lowReso_y2,kp1_lowReso_x1), flowconf_y(kp1_lowReso_y1,kp1_lowReso_x2), flowconf_y(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+      float adaptiveFactor_x = 1;
+      float adaptiveFactor_y = 1;
+      float maxFactor = 3;
+      if(flowconf_kp1_x<0.98){
+          adaptiveFactor_x = maxFactor;
+      } else {
+          adaptiveFactor_x = (maxFactor-1)*(1-flowconf_kp1_x)/0.02+1;
+      }
+      if(flowconf_kp1_y<0.98){
+          adaptiveFactor_y = maxFactor;
+      } else {
+          adaptiveFactor_y = (maxFactor-1)*(1-flowconf_kp1_y)/0.02+1;
+      }
+
+      //std::cout << "kp1_lowReso_x = " << kp1_lowReso_x << "; kp1_lowReso_y = " << kp1_lowReso_y << "; flow_kp1_x = " << flow_kp1_x << "; flow_kp1_y = " << flow_kp1_y << std::endl;
+      float quantizationCenter_y_2 = keypoints1[kp1Idx].y + flow_kp1_y;
+      float quantizationCenter_x_2 = keypoints1[kp1Idx].x + flow_kp1_x;
+
+      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1(1, 128);
+      tmpDescriptors1.block<1,128>(0,0) = descriptors1.block<1,128>(kp1Idx,0);
+
+      std::vector<point2D_t> tmpIndices2;
+      for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+      {
+          //if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=uncertainty_radius*uncertainty_radius)
+          if(abs(keypoints2[kp2Idx].x-quantizationCenter_x_2)<=uncertainty_radius*adaptiveFactor_x && abs(keypoints2[kp2Idx].y-quantizationCenter_y_2)<=uncertainty_radius*adaptiveFactor_y)
+          {
+              tmpIndices2.push_back(kp2Idx);
+          }
+      }
+      // std::cout << "~~ tmpIndices2.size() = " << tmpIndices2.size() << "; keypoints2.size() = " << keypoints2.size() << std::endl;
+
+      Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2(tmpIndices2.size(), 128);
+      for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+      {
+          tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
+      }
+
+      const Eigen::MatrixXi dists = ComputeSiftDistanceMatrix(
+          nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+      // const Eigen::MatrixXf dists = ComputeSiftDistanceMatrix_Kevin(tmpDescriptors1, tmpDescriptors2);
+      // // std::cout << "ComputeSiftDistanceMatrix is done! dists.rows() = " <<  dists.rows() << ";  dists.cols() = " <<  dists.cols() << std::endl;
+
+      FeatureMatches tmpQuantizationMatches;
+      FindBestMatches(dists, match_options.max_ratio, match_options.max_distance,
+                      match_options.cross_check, &tmpQuantizationMatches);
+
+
+      for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches.size(); resultCnt++)
+      {
+          FeatureMatch ConvertedMatch;
+          ConvertedMatch.point2D_idx1 = kp1Idx;
+          ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches[resultCnt].point2D_idx2];
+          matches->push_back(ConvertedMatch);
+      }
+  }
+  std::cout << "@@@ Final raw match number => matches->size() = " << matches->size() << "; keypoints1.size() = " << keypoints1.size() << std::endl;
+}
+
+// should also be simplified and modifed!
+void AdaptiveNewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
+                          const FeatureKeypoints& keypoints1,
+                          const FeatureKeypoints& keypoints2,
+                          const FeatureDescriptors& descriptors1,
+                          const FeatureDescriptors& descriptors2,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x_21,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y_21,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_x,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_y,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_x_21,
+                          const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_y_21,
+                          FeatureMatches* matches) {
+  CHECK(match_options.Check());
+  CHECK_NOTNULL(matches);
+
+  double uncertainty_radius = match_options.uncertainty_radius;
+  point2D_t image_scale_factor = match_options.image_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t OF_scale_factor = match_options.OF_scale_factor; // 24; // 12; // 48; // 16; //4;
+  point2D_t DeMoN_OF_Height = 48;
+  point2D_t DeMoN_OF_Width = 64;
+
+  //for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
+  //{
+      // FeatureMatches matches1to2;
+      std::vector<int> matches12;
+      // const size_t num_matches12;
+      size_t num_matches12 = 0;
+      matches12.resize(keypoints1.size(), -1);
+
+      for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+      // for(size_t kp1Idx=0;kp1Idx<1; kp1Idx++)
+      {
+          float kp1_lowReso_x = (keypoints1[kp1Idx].x / float(image_scale_factor));
+          float kp1_lowReso_y = (keypoints1[kp1Idx].y / float(image_scale_factor));
+          float kp1_lowReso_x1 = floor(kp1_lowReso_x);
+          float kp1_lowReso_x2 = ceil(kp1_lowReso_x);
+          float kp1_lowReso_y1 = floor(kp1_lowReso_y);
+          float kp1_lowReso_y2 = ceil(kp1_lowReso_y);
+          // DEBUG: Becareful with =!
+          if(kp1_lowReso_y2>48 || kp1_lowReso_y1<0 || kp1_lowReso_x2>64 || kp1_lowReso_x1<0){
+              std::cout << "keypoints1[kp1Idx].x = " << keypoints1[kp1Idx].x << "; keypoints1[kp1Idx].y = " << keypoints1[kp1Idx].y << "; kp1_lowReso_x = " << kp1_lowReso_x << "; kp1_lowReso_y = " << kp1_lowReso_y << "; kp1_lowReso_x1 = " << kp1_lowReso_x1 << "; kp1_lowReso_x2 = " << kp1_lowReso_x2 << "; kp1_lowReso_y1 = " << kp1_lowReso_y1 << "; kp1_lowReso_y2 = " << kp1_lowReso_y2 << std::endl;
+              std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
+              continue;
+          }
+          float flow_kp1_x = 64.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x2), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+          float flow_kp1_y = 48.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_y(kp1_lowReso_y1,kp1_lowReso_x1), optical_flow_y(kp1_lowReso_y2,kp1_lowReso_x1), optical_flow_y(kp1_lowReso_y1,kp1_lowReso_x2), optical_flow_y(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+
+
+          float flowconf_kp1_x = computeBilinearInterpolation(flowconf_x(kp1_lowReso_y1,kp1_lowReso_x1), flowconf_x(kp1_lowReso_y2,kp1_lowReso_x1), flowconf_x(kp1_lowReso_y1,kp1_lowReso_x2), flowconf_x(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+          float flowconf_kp1_y = computeBilinearInterpolation(flowconf_y(kp1_lowReso_y1,kp1_lowReso_x1), flowconf_y(kp1_lowReso_y2,kp1_lowReso_x1), flowconf_y(kp1_lowReso_y1,kp1_lowReso_x2), flowconf_y(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);
+          float adaptiveFactor_x = 1;
+          float adaptiveFactor_y = 1;
+          float maxFactor = 3;
+          if(flowconf_kp1_x<0.98){
+              adaptiveFactor_x = maxFactor;
+          } else {
+              adaptiveFactor_x = (maxFactor-1)*(1-flowconf_kp1_x)/0.02+1;
+          }
+          if(flowconf_kp1_y<0.98){
+              adaptiveFactor_y = maxFactor;
+          } else {
+              adaptiveFactor_y = (maxFactor-1)*(1-flowconf_kp1_y)/0.02+1;
+          }
+
+          float quantizationCenter_y_2 = keypoints1[kp1Idx].y + flow_kp1_y;
+          float quantizationCenter_x_2 = keypoints1[kp1Idx].x + flow_kp1_x;
+
+          // float quantizationCenter_y_1 = floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+          // float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-floor(quantization_map[cnt].point2D_idx1 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+          // // float quantizationCenter_x_1 = image_scale_factor * (quantization_map[cnt].point2D_idx1-quantizationCenter_y_1*(DeMoN_OF_Width * OF_scale_factor));
+          // if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2)) < image_scale_factor * 1)//uncertainty_radius*uncertainty_radius)
+          //if(tmpQuantizationIdx1==quantization_map[cnt].point2D_idx1)
+          //{
+              //std::cout << "direction 1 ---> 2" << std::endl;
+              //shareIdKp1Cnt++;
+              std::vector<point2D_t> tmpIndices1;
+              // std::cout << "tmpIndices1 is created!" << std::endl;
+
+              tmpIndices1.push_back(kp1Idx);
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1(1, 128);
+              tmpDescriptors1.block<1,128>(0,0) = descriptors1.block<1,128>(kp1Idx,0);
+
+              std::vector<point2D_t> tmpIndices2;
+              for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+              {
+                  //if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2))<=uncertainty_radius*uncertainty_radius)
+                  if(abs(keypoints2[kp2Idx].x-quantizationCenter_x_2)<=uncertainty_radius*adaptiveFactor_x && abs(keypoints2[kp2Idx].y-quantizationCenter_y_2)<=uncertainty_radius*adaptiveFactor_y)
+                  {
+                      // tmpDescriptors2 << descriptors2.block<1,128>(kp2Idx,0);
+                      tmpIndices2.push_back(kp2Idx);
+                  }
+              }
+              // std::cout << "~~ tmpIndices2.size() = " << tmpIndices2.size() << std::endl;
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2(tmpIndices2.size(), 128);
+              for(point2D_t kp2Idx=0;kp2Idx<tmpIndices2.size(); kp2Idx++)
+              {
+                  tmpDescriptors2.block<1,128>(kp2Idx,0) = descriptors2.block<1,128>(tmpIndices2[kp2Idx],0);
+              }
+
+              // // remember to normalize the descriptors so that colmap threshold params can be used!
+              // Eigen::MatrixXf desc1 = tmpDescriptors1.cast <float> ();
+              // Eigen::MatrixXf desc2 = tmpDescriptors2.cast <float> ();
+              // desc1 = L1RootNormalizeFeatureDescriptors(desc1);
+              // desc2 = L1RootNormalizeFeatureDescriptors(desc2);
+              // // tmpDescriptors1 = L2NormalizeFeatureDescriptors(tmpDescriptors1);
+              // // tmpDescriptors2 = L2NormalizeFeatureDescriptors(tmpDescriptors2);
+
+              const Eigen::MatrixXi dists12 = ComputeSiftDistanceMatrix(
+                  nullptr, nullptr, tmpDescriptors1, tmpDescriptors2, nullptr);
+              // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+              // num_matches12 = FindBestMatchesOneWay(dists12, match_options.max_ratio, match_options.max_distance, &matches12);
+
+              FeatureMatches tmpQuantizationMatches12;
+              FindBestMatches(dists12, match_options.max_ratio, match_options.max_distance,
+                              false, &tmpQuantizationMatches12);
+              // std::cout << "FindBestMatches is done!" << std::endl;
+
+              for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches12.size(); resultCnt++)
+              {
+                  FeatureMatch ConvertedMatch;
+                  ConvertedMatch.point2D_idx1 = kp1Idx;
+                  ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches12[resultCnt].point2D_idx2];
+                  matches12[ConvertedMatch.point2D_idx1] = ConvertedMatch.point2D_idx2;
+                  num_matches12++;
+              }
+              // std::cout << "index conversion is done!" << std::endl;
+          //}
+          // std::cout << "end of loop kp1Idx ^" << std::endl;
+          // std::cout << "@@@ shareIdKp1Cnt = " << shareIdKp1Cnt << std::endl;
+      }
+      // std::cout << "end of loop kp1Idx ^" << std::endl;
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // FeatureMatches matches2to1;
+      std::vector<int> matches21;
+      // const size_t num_matches21;
+      size_t num_matches21 = 0;
+      matches21.resize(keypoints2.size(), -1);
+
+      for(point2D_t kp2Idx=0;kp2Idx<keypoints2.size(); kp2Idx++)
+      {
+          float kp2_lowReso_x = (keypoints2[kp2Idx].x / float(image_scale_factor));
+          float kp2_lowReso_y = (keypoints2[kp2Idx].y / float(image_scale_factor));
+          float kp2_lowReso_x1 = floor(kp2_lowReso_x);
+          float kp2_lowReso_x2 = ceil(kp2_lowReso_x);
+          float kp2_lowReso_y1 = floor(kp2_lowReso_y);
+          float kp2_lowReso_y2 = ceil(kp2_lowReso_y);
+          if(kp2_lowReso_y2>48 || kp2_lowReso_y1<0 || kp2_lowReso_x2>64 || kp2_lowReso_x1<0){
+              std::cout << "###### skip this kp2 since optical flow guidance is out of image border!" << std::endl;
+              continue;
+          }
+          float flow_kp2_x = 64.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_x_21(kp2_lowReso_y1,kp2_lowReso_x1), optical_flow_x_21(kp2_lowReso_y2,kp2_lowReso_x1), optical_flow_x_21(kp2_lowReso_y1,kp2_lowReso_x2), optical_flow_x_21(kp2_lowReso_y2,kp2_lowReso_x2), kp2_lowReso_x1, kp2_lowReso_x2, kp2_lowReso_y1, kp2_lowReso_y2, kp2_lowReso_x, kp2_lowReso_y);
+          float flow_kp2_y = 48.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_y_21(kp2_lowReso_y1,kp2_lowReso_x1), optical_flow_y_21(kp2_lowReso_y2,kp2_lowReso_x1), optical_flow_y_21(kp2_lowReso_y1,kp2_lowReso_x2), optical_flow_y_21(kp2_lowReso_y2,kp2_lowReso_x2), kp2_lowReso_x1, kp2_lowReso_x2, kp2_lowReso_y1, kp2_lowReso_y2, kp2_lowReso_x, kp2_lowReso_y);
+          //std::cout << "kp2_lowReso_x1 = " << kp2_lowReso_x1 << "; kp2_lowReso_x2 = " << kp2_lowReso_x2 << "; kp2_lowReso_y1 = " << kp2_lowReso_y1 << "; kp2_lowReso_y2 = " << kp2_lowReso_y2 << std::endl;
+
+          float flowconf_kp2_x = computeBilinearInterpolation(flowconf_x(kp2_lowReso_y1,kp2_lowReso_x1), flowconf_x(kp2_lowReso_y2,kp2_lowReso_x1), flowconf_x(kp2_lowReso_y1,kp2_lowReso_x2), flowconf_x(kp2_lowReso_y2,kp2_lowReso_x2), kp2_lowReso_x1, kp2_lowReso_x2, kp2_lowReso_y1, kp2_lowReso_y2, kp2_lowReso_x, kp2_lowReso_y);
+          float flowconf_kp2_y = computeBilinearInterpolation(flowconf_y(kp2_lowReso_y1,kp2_lowReso_x1), flowconf_y(kp2_lowReso_y2,kp2_lowReso_x1), flowconf_y(kp2_lowReso_y1,kp2_lowReso_x2), flowconf_y(kp2_lowReso_y2,kp2_lowReso_x2), kp2_lowReso_x1, kp2_lowReso_x2, kp2_lowReso_y1, kp2_lowReso_y2, kp2_lowReso_x, kp2_lowReso_y);
+          float adaptiveFactor_x_2nd = 1;
+          float adaptiveFactor_y_2nd = 1;
+          float maxFactor_2nd = 3;
+          if(flowconf_kp2_x<0.98){
+              adaptiveFactor_x_2nd = maxFactor_2nd;
+          } else {
+              adaptiveFactor_x_2nd = (maxFactor_2nd-1)*(1-flowconf_kp2_x)/0.02+1;
+          }
+          if(flowconf_kp2_y<0.98){
+              adaptiveFactor_y_2nd = maxFactor_2nd;
+          } else {
+              adaptiveFactor_y_2nd = (maxFactor_2nd-1)*(1-flowconf_kp2_y)/0.02+1;
+          }
+
+          //std::cout << "kp2_lowReso_x = " << kp2_lowReso_x << "; kp2_lowReso_y = " << kp2_lowReso_y << "; flow_kp2_x = " << flow_kp2_x << "; flow_kp2_y = " << flow_kp2_y << std::endl;
+          float quantizationCenter_y_1 = keypoints2[kp2Idx].y + flow_kp2_y;
+          float quantizationCenter_x_1 = keypoints2[kp2Idx].x + flow_kp2_x;
+
+          // if(quantizationCenter_y_1>=48*image_scale_factor || quantizationCenter_y_1<0 || quantizationCenter_x_1>=64*image_scale_factor || quantizationCenter_x_1<0){
+          //     //std::cout << "###### skip this kp2 since optical flow guidance is out of image border!" << std::endl;
+          //     continue;
+          // }
+          // float quantizationCenter_y_2 = floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor) * image_scale_factor;
+          // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-floor(quantization_map[cnt].point2D_idx2 / DeMoN_OF_Width / OF_scale_factor)*(DeMoN_OF_Width * OF_scale_factor));
+          // // float quantizationCenter_x_2 = image_scale_factor * (quantization_map[cnt].point2D_idx2-quantizationCenter_y_2*(DeMoN_OF_Width * OF_scale_factor));
+          // if((pow(keypoints2[kp2Idx].x-quantizationCenter_x_2, 2)+pow(keypoints2[kp2Idx].y-quantizationCenter_y_2, 2)) < image_scale_factor * 1)//uncertainty_radius*uncertainty_radius)
+          //if(tmpQuantizationIdx2==quantization_map[cnt].point2D_idx2)
+          //{
+              //std::cout << "@ direction 2 ---> 1" << std::endl;
+              //shareIdKp2Cnt++;
+              std::vector<point2D_t> tmpIndices2;
+              // std::cout << "tmpIndices2 is created!" << std::endl;
+
+              tmpIndices2.push_back(kp2Idx);
+
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors2(1, 128);
+              tmpDescriptors2.block<1,128>(0,0) = descriptors2.block<1,128>(kp2Idx,0);
+
+              std::vector<point2D_t> tmpIndices1;
+              for(point2D_t kp1Idx=0;kp1Idx<keypoints1.size(); kp1Idx++)
+              {
+                  //if((pow(keypoints1[kp1Idx].x-quantizationCenter_x_1, 2)+pow(keypoints1[kp1Idx].y-quantizationCenter_y_1, 2))<=uncertainty_radius*uncertainty_radius)
+                  if(abs(keypoints1[kp1Idx].x-quantizationCenter_x_1)<=uncertainty_radius*adaptiveFactor_x_2nd && abs(keypoints1[kp1Idx].y-quantizationCenter_y_1)<=uncertainty_radius*adaptiveFactor_y_2nd)
+                  {
+                      tmpIndices1.push_back(kp1Idx);
+                  }
+              }
+              // std::cout << "~~ tmpIndices1.size() = " << tmpIndices1.size() << std::endl;
+
+              // Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1;
+              // for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+              // {
+              //     tmpDescriptors1.resize(kp1Idx+1, 128);
+              //     tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
+              // }
+              // // std::cout << "end of loop updating descriptor1 subblocks ^" << std::endl;
+              Eigen::Matrix<uint8_t, Eigen::Dynamic, 128, Eigen::RowMajor> tmpDescriptors1(tmpIndices1.size(), 128);
+              for(point2D_t kp1Idx=0;kp1Idx<tmpIndices1.size(); kp1Idx++)
+              {
+                  tmpDescriptors1.block<1,128>(kp1Idx,0) = descriptors1.block<1,128>(tmpIndices1[kp1Idx],0);
+              }
+
+              const Eigen::MatrixXi dists21 = ComputeSiftDistanceMatrix(
+                  nullptr, nullptr, tmpDescriptors2, tmpDescriptors1, nullptr);
+              // std::cout << "ComputeSiftDistanceMatrix is done!" << std::endl;
+
+              // num_matches21 = FindBestMatchesOneWay(dists21, match_options.max_ratio, match_options.max_distance, &matches21);
+
+              FeatureMatches tmpQuantizationMatches21;
+              FindBestMatches(dists21, match_options.max_ratio, match_options.max_distance,
+                              false, &tmpQuantizationMatches21);
+              // std::cout << "FindBestMatches is done!" << std::endl;
+
+              for(point2D_t resultCnt=0;resultCnt<tmpQuantizationMatches21.size(); resultCnt++)
+              {
+                  FeatureMatch ConvertedMatch;
+                  ConvertedMatch.point2D_idx1 = tmpIndices1[tmpQuantizationMatches21[resultCnt].point2D_idx2];
+                  // ConvertedMatch.point2D_idx2 = tmpIndices2[tmpQuantizationMatches21[resultCnt].point2D_idx1];
+                  ConvertedMatch.point2D_idx2 = kp2Idx;
+                  // // matches->push_back(ConvertedMatch);
+                  // matches2to1.push_back(ConvertedMatch);
+                  matches21[ConvertedMatch.point2D_idx2] = ConvertedMatch.point2D_idx1;
+                  num_matches21++;
+              }
+              // // std::cout << "index conversion is done!" << std::endl;
+          //}
+          // std::cout << "end of loop kp1Idx ^" << std::endl;
+          // std::cout << "@@@ shareIdKp1Cnt = " << shareIdKp1Cnt << std::endl;
+      }
+      // std::cout << "end of loop kp1Idx ^" << std::endl;
+      /////////////////////////////////////////////////////////////////////
+      /******* Manually cross checking *******/
+      if (true) {
+        // std::cout << "@@@ num_matches12 = " << num_matches12 << ", @@@ matches12.size() = " << matches12.size() << ", @@@ num_matches21 = " << num_matches21 << ", @@@ matches21.size() = " << matches21.size() << std::endl;
+        matches->reserve(std::min(num_matches12, num_matches21));
+        for (size_t i1 = 0; i1 < matches12.size(); ++i1) {
+          if (matches12[i1] != -1 && matches21[matches12[i1]] != -1 &&
+              matches21[matches12[i1]] == static_cast<int>(i1)) {
+            FeatureMatch match;
+            match.point2D_idx1 = i1;
+            match.point2D_idx2 = matches12[i1];
+            matches->push_back(match);
+          }
+        }
+        std::cout << "@@@ num_matches12 = " << num_matches12 << ", @@@ matches12.size() = " << matches12.size() << ", @@@ num_matches21 = " << num_matches21 << ", @@@ matches21.size() = " << matches21.size() << ", == ### cross-check survivors = " << matches->size() << std::endl;
+      }
+      /////////////////////////////////////////////////////////////////////
+  //}
+
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
                           const FeatureKeypoints& keypoints1,
                           const FeatureKeypoints& keypoints2,

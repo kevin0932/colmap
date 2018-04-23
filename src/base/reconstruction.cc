@@ -700,6 +700,14 @@ size_t Reconstruction::ComputeNumObservations() const {
   return num_obs;
 }
 
+size_t Reconstruction::ComputeNumFeatures() const {
+  size_t num_obs = 0;
+  for (const image_t image_id : reg_image_ids_) {
+    num_obs += Image(image_id).NumPoints2D();
+  }
+  return num_obs;
+}
+
 double Reconstruction::ComputeMeanTrackLength() const {
   if (points3D_.empty()) {
     return 0.0;
@@ -713,6 +721,15 @@ double Reconstruction::ComputeMeanObservationsPerRegImage() const {
     return 0.0;
   } else {
     return ComputeNumObservations() /
+           static_cast<double>(reg_image_ids_.size());
+  }
+}
+
+double Reconstruction::ComputeMean2DFeaturePoints() const {
+  if (reg_image_ids_.empty()) {
+    return 0.0;
+  } else {
+    return ComputeNumFeatures() /
            static_cast<double>(reg_image_ids_.size());
   }
 }

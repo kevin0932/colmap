@@ -264,6 +264,16 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMa
                         const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x,
                         const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y,
                         FeatureMatches* matches);
+void AdaptiveNewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_x,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_y,
+                        FeatureMatches* matches);
 void OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
                         const FeatureKeypoints& keypoints1,
                         const FeatureKeypoints& keypoints2,
@@ -282,6 +292,22 @@ void NewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const Si
                         const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x_21,
                         const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y_21,
                         FeatureMatches* matches);
+
+void AdaptiveNewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(const SiftMatchingOptions& match_options,
+                        const FeatureKeypoints& keypoints1,
+                        const FeatureKeypoints& keypoints2,
+                        const FeatureDescriptors& descriptors1,
+                        const FeatureDescriptors& descriptors2,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_x_21,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& optical_flow_y_21,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_x,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_y,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_x_21,
+                        const Eigen::Matrix<float, 48, 64, Eigen::RowMajor>& flowconf_y_21,
+                        FeatureMatches* matches);
+
 void MatchGuidedSiftFeaturesCPU(const SiftMatchingOptions& match_options,
                                 const FeatureKeypoints& keypoints1,
                                 const FeatureKeypoints& keypoints2,

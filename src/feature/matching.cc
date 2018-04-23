@@ -449,6 +449,24 @@ CrossCheckOFGuidedSiftCPUFeatureMatcher::CrossCheckOFGuidedSiftCPUFeatureMatcher
   CHECK(options_.Check());
 }
 
+AdaptiveNewOFGuidedSiftCPUFeatureMatcher::AdaptiveNewOFGuidedSiftCPUFeatureMatcher(
+    const SiftMatchingOptions& options, FeatureMatcherCache* cache,
+    JobQueue<Input>* input_queue, JobQueue<Output>* output_queue)
+    : FeatureMatcherThread(options, cache),
+      input_queue_(input_queue),
+      output_queue_(output_queue) {
+  CHECK(options_.Check());
+}
+
+AdaptiveCrossCheckOFGuidedSiftCPUFeatureMatcher::AdaptiveCrossCheckOFGuidedSiftCPUFeatureMatcher(
+    const SiftMatchingOptions& options, FeatureMatcherCache* cache,
+    JobQueue<Input>* input_queue, JobQueue<Output>* output_queue)
+    : FeatureMatcherThread(options, cache),
+      input_queue_(input_queue),
+      output_queue_(output_queue) {
+  CHECK(options_.Check());
+}
+
 void GuidedSiftCPUFeatureMatcher::Run() {
   SignalValidSetup();
 
@@ -494,7 +512,7 @@ void OFGuidedSiftCPUFeatureMatcher::Run() {
     if (input_job.IsValid()) {
       auto data = input_job.Data();
       // const std::vector<FeatureMatches> quantization_maps = data.quantization_maps;
-      const FeatureMatches quantization_map = data.quantization_map;
+      // const FeatureMatches quantization_map = data.quantization_map;
       // if (data.two_view_geometry.inlier_matches.size() <
       //     static_cast<size_t>(options_.min_num_inliers)) {
       //   CHECK(output_queue_->Push(data));
@@ -523,21 +541,21 @@ void OFGuidedSiftCPUFeatureMatcher::Run() {
       // }
 
 
-      // OFGuidedMatchSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
-      if(options_.MatchingByPixel){
-          // OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase_byPixel(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
-          if(options_.ManualCrossCheck==false){
-              if(options_.ColmapFormat==false){
-                  OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
-              } else {
-                  OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
-              }
-          } else {
-              OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
-          }
-      } else {
-          OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
-      }
+      // // OFGuidedMatchSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      // if(options_.MatchingByPixel){
+      //     // OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase_byPixel(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      //     if(options_.ManualCrossCheck==false){
+      //         if(options_.ColmapFormat==false){
+      //             OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      //         } else {
+      //             OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      //         }
+      //     } else {
+      //         OFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      //     }
+      // } else {
+      //     OFGuidedMatchSiftFeaturesCPU_PixelPerfectCase(options_, keypoints1, keypoints2, descriptors1, descriptors2, quantization_map, &data.matches);
+      // }
 
       // MatchSiftFeaturesCPU(options_, descriptors1, descriptors2, &data.matches);
       // MatchGuidedSiftFeaturesCPU(options_, keypoints1, keypoints2, descriptors1, descriptors2, &data.two_view_geometry);
@@ -701,6 +719,82 @@ void CrossCheckOFGuidedSiftCPUFeatureMatcher::Run() {
       CHECK(output_queue_->Push(data));
       // // added to trigger verifier???
       // CHECK(verifier_queue_->Push(data));
+    }
+  }
+}
+
+void AdaptiveNewOFGuidedSiftCPUFeatureMatcher::Run() {
+  std::cout << "$$$$$$$$$$$ AdaptiveNewOFGuidedSiftCPUFeatureMatcher::Run()" << std::endl;
+  SignalValidSetup();
+
+  while (true) {
+    if (IsStopped()) {
+      break;
+    }
+
+    const auto input_job = input_queue_->Pop();
+    if (input_job.IsValid()) {
+      auto data = input_job.Data();
+      // const std::vector<FeatureMatches> quantization_maps = data.quantization_maps;
+      // const FeatureMatches quantization_map = data.quantization_map;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_x = data.optical_flow_x;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_y = data.optical_flow_y;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_x = data.flowconf_x;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_y = data.flowconf_y;
+
+
+      const FeatureKeypoints keypoints1 = cache_->GetKeypoints(data.image_id1);
+      const FeatureKeypoints keypoints2 = cache_->GetKeypoints(data.image_id2);
+
+      FeatureDescriptors descriptors1 =
+          cache_->GetDescriptors(data.image_id1);
+      FeatureDescriptors descriptors2 =
+          cache_->GetDescriptors(data.image_id2);
+
+      AdaptiveNewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ColmapFormat(options_, keypoints1, keypoints2, descriptors1, descriptors2, optical_flow_x, optical_flow_y,  flowconf_x, flowconf_y, &data.matches);
+
+      CHECK(output_queue_->Push(data));
+
+    }
+  }
+}
+
+void AdaptiveCrossCheckOFGuidedSiftCPUFeatureMatcher::Run() {
+  std::cout << "$$$$$$$$$$$ AdaptiveCrossCheckOFGuidedSiftCPUFeatureMatcher::Run()" << std::endl;
+  SignalValidSetup();
+
+  while (true) {
+    if (IsStopped()) {
+      break;
+    }
+
+    const auto input_job = input_queue_->Pop();
+    if (input_job.IsValid()) {
+      auto data = input_job.Data();
+      // const std::vector<FeatureMatches> quantization_maps = data.quantization_maps;
+      // const FeatureMatches quantization_map = data.quantization_map;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_x = data.optical_flow_x;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_y = data.optical_flow_y;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_x_21 = data.optical_flow_x_21;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_y_21 = data.optical_flow_y_21;
+
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_x = data.flowconf_x;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_y = data.flowconf_y;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_x_21 = data.flowconf_x_21;
+      const Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_y_21 = data.flowconf_y_21;
+
+      const FeatureKeypoints keypoints1 = cache_->GetKeypoints(data.image_id1);
+      const FeatureKeypoints keypoints2 = cache_->GetKeypoints(data.image_id2);
+
+      FeatureDescriptors descriptors1 =
+          cache_->GetDescriptors(data.image_id1);
+      FeatureDescriptors descriptors2 =
+          cache_->GetDescriptors(data.image_id2);
+
+      AdaptiveNewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(options_, keypoints1, keypoints2, descriptors1, descriptors2, optical_flow_x, optical_flow_y, optical_flow_x_21, optical_flow_y_21, flowconf_x, flowconf_y, flowconf_x_21, flowconf_y_21, &data.matches);
+
+      CHECK(output_queue_->Push(data));
+
     }
   }
 }
@@ -971,29 +1065,20 @@ SiftFeatureMatcher::SiftFeatureMatcher(const SiftMatchingOptions& options,
           }
       }
   } else if (options_.optical_flow_guided_matching) {
-      if (options_.use_gpu) {
-        std::cout << "options_.use_gpu is set to true!" << std::endl;
-        // //qDebug() << "options_.use_gpu is set to true!";
-        // //QTextStream(stdout) << "~~~~options_.use_gpu is set to true!~~~~" << endl;
-        // matchers_.reserve(num_threads);
-        // for (int i = 0; i < num_threads; ++i) {
-        //   matchers_.emplace_back(new OFGuidedSiftCPUFeatureMatcher(
-        //       options_, cache, &matcher_queue_, &verifier_queue_));
-        // }
-        auto gpu_options = options_;
-        matchers_.reserve(gpu_indices.size());
-        for (const auto& gpu_index : gpu_indices) {
-          gpu_options.gpu_index = std::to_string(gpu_index);
-          matchers_.emplace_back(new OFGuidedSiftGPUFeatureMatcher(
-              gpu_options, cache, &matcher_queue_, &verifier_queue_));
-        }
-      } else {
-        std::cout << "options_.use_gpu is set to false!" << std::endl;
-        //qDebug() << "options_.use_gpu is set to false!";
-        //QTextStream(stdout) << "~~~~options_.use_gpu is set to false!~~~~" << endl;
+      if (options_.ManualCrossCheck) {
+        std::cout << "options_.optical_flow_guided_matching is set to true!" << std::endl;
+        std::cout << "only CPU code is implemented!" << std::endl;
         matchers_.reserve(num_threads);
         for (int i = 0; i < num_threads; ++i) {
-          matchers_.emplace_back(new OFGuidedSiftCPUFeatureMatcher(
+          matchers_.emplace_back(new AdaptiveCrossCheckOFGuidedSiftCPUFeatureMatcher(
+          options_, cache, &matcher_queue_, &verifier_queue_));
+        }
+      } else {
+        std::cout << "options_.optical_flow_guided_matching is set to true!" << std::endl;
+        std::cout << "only CPU code is implemented!" << std::endl;
+        matchers_.reserve(num_threads);
+        for (int i = 0; i < num_threads; ++i) {
+          matchers_.emplace_back(new AdaptiveNewOFGuidedSiftCPUFeatureMatcher(
               options_, cache, &matcher_queue_, &verifier_queue_));
         }
       }
@@ -1481,6 +1566,132 @@ void SiftFeatureMatcher::NewOFGuidedMatch(
   CHECK_EQ(output_queue_.Size(), 0);
 }
 
+void SiftFeatureMatcher::AdaptiveNewOFGuidedMatch(
+    const std::vector<std::pair<image_t, image_t>>& image_pairs,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_x,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_y) {
+  std::cout << "SiftFeatureMatcher::AdaptiveNewOFGuidedMatch" << std::endl;
+  std::cout << "optical_flows_x.size() = " << optical_flows_x.size() << std::endl;
+  std::cout << "optical_flows_y.size() = " << optical_flows_y.size() << std::endl;
+  std::cout << "flowconfs_x.size() = " << flowconfs_x.size() << std::endl;
+  std::cout << "flowconfs_y.size() = " << flowconfs_y.size() << std::endl;
+  CHECK_NOTNULL(database_);
+  CHECK_NOTNULL(cache_);
+  CHECK(is_setup_);
+
+  if (image_pairs.empty()) {
+    return;
+  }
+
+  DatabaseTransaction database_transaction(database_);
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Match the image pairs
+  //////////////////////////////////////////////////////////////////////////////
+
+  std::unordered_set<image_pair_t> image_pair_ids;
+  image_pair_ids.reserve(image_pairs.size());
+
+  size_t num_outputs = 0;
+  // for (const auto image_pair : image_pairs) {
+  for (size_t cnt=0; cnt<image_pairs.size(); cnt++) {
+    const auto image_pair = image_pairs[cnt];
+    const auto optical_flow_x = optical_flows_x[cnt];
+    const auto optical_flow_y = optical_flows_y[cnt];
+    const auto flowconf_x = flowconfs_x[cnt];
+    const auto flowconf_y = flowconfs_y[cnt];
+
+    // Avoid self-matches.
+    if (image_pair.first == image_pair.second) {
+      continue;
+    }
+
+    // Avoid duplicate image pairs.
+    const image_pair_t pair_id =
+        Database::ImagePairToPairId(image_pair.first, image_pair.second);
+    if (image_pair_ids.count(pair_id) > 0) {
+      continue;
+    }
+
+    image_pair_ids.insert(pair_id);
+
+    const bool exists_matches =
+        cache_->ExistsMatches(image_pair.first, image_pair.second);
+    const bool exists_inlier_matches =
+        cache_->ExistsInlierMatches(image_pair.first, image_pair.second);
+
+    if (exists_matches && exists_inlier_matches) {
+      continue;
+    }
+
+    num_outputs += 1;
+
+    // If only one of the matches or inlier matches exist, we recompute them
+    // from scratch and delete the existing results. This must be done before
+    // pushing the jobs to the queue, otherwise database constraints might fail
+    // when writing an existing result into the database.
+
+    if (exists_inlier_matches) {
+      cache_->DeleteInlierMatches(image_pair.first, image_pair.second);
+    }
+
+    internal::FeatureMatcherData data;
+    data.image_id1 = image_pair.first;
+    data.image_id2 = image_pair.second;
+    // data.quantization_maps.clear();
+    // data.quantization_maps = std::move(quantization_maps);
+    //data.quantization_maps.assign(quantization_maps.begin(), quantization_maps.end());  // copy the vector data
+    data.optical_flow_x = (optical_flow_x);
+    data.optical_flow_y = (optical_flow_y);
+    data.flowconf_x = (flowconf_x);
+    data.flowconf_y = (flowconf_y);
+
+    if (exists_matches) {
+      data.matches = cache_->GetMatches(image_pair.first, image_pair.second);
+      cache_->DeleteMatches(image_pair.first, image_pair.second);
+      std::cout << "~~~~verifier_queue_.Push(data)~~~~" << std::endl;
+      CHECK(verifier_queue_.Push(data));
+    } else {
+      std::cout << "~~~~matcher_queue_.Push(data)~~~~" << std::endl;
+      //qDebug() << "~~~~matcher_queue_.Push(data)~~~~";
+      //QTextStream(stdout) << "~~~~matcher_queue_.Push(data)~~~~" << endl;
+      CHECK(matcher_queue_.Push(data));
+      std::cout << "$$$$$$$$ matcher_queue_.Push(data)~~~~" << std::endl;
+    }
+  }
+  // // added for the convenience of DEBUGING!
+  // return;
+  //////////////////////////////////////////////////////////////////////////////
+  // Write results to database
+  //////////////////////////////////////////////////////////////////////////////
+
+  for (size_t i = 0; i < num_outputs; ++i) {
+    const auto output_job = output_queue_.Pop();
+    CHECK(output_job.IsValid());
+    auto output = output_job.Data();
+
+    if (output.matches.size() < static_cast<size_t>(options_.min_num_inliers)) {
+      output.matches = {};
+    }
+
+    if (output.two_view_geometry.inlier_matches.size() <
+        static_cast<size_t>(options_.min_num_inliers)) {
+      output.two_view_geometry = TwoViewGeometry();
+      std::cout << "^ ~ ^ output.two_view_geometry.inlier_matches.size() < options_.min_num_inliers" << std::endl;
+    }
+
+    std::cout << "$$$$$$$$ Start WriteMatches~~~~" << std::endl;
+    cache_->WriteMatches(output.image_id1, output.image_id2, output.matches);
+    std::cout << "$$$$$$$$ Start WriteInlierMatches~~~~" << std::endl;
+    cache_->WriteInlierMatches(output.image_id1, output.image_id2,
+                               output.two_view_geometry);
+  }
+
+  CHECK_EQ(output_queue_.Size(), 0);
+}
+
 
 void SiftFeatureMatcher::CrossCheckOFGuidedMatch(
     const std::vector<std::pair<image_t, image_t>>& image_pairs,
@@ -1567,6 +1778,149 @@ void SiftFeatureMatcher::CrossCheckOFGuidedMatch(
     data.optical_flow_y = (optical_flow_y);
     data.optical_flow_x_21 = (optical_flow_x_21);
     data.optical_flow_y_21 = (optical_flow_y_21);
+
+    if (exists_matches) {
+      data.matches = cache_->GetMatches(image_pair.first, image_pair.second);
+      cache_->DeleteMatches(image_pair.first, image_pair.second);
+      std::cout << "~~~~verifier_queue_.Push(data)~~~~" << std::endl;
+      CHECK(verifier_queue_.Push(data));
+    } else {
+      std::cout << "~~~~matcher_queue_.Push(data)~~~~" << std::endl;
+      //qDebug() << "~~~~matcher_queue_.Push(data)~~~~";
+      //QTextStream(stdout) << "~~~~matcher_queue_.Push(data)~~~~" << endl;
+      CHECK(matcher_queue_.Push(data));
+      std::cout << "$$$$$$$$ matcher_queue_.Push(data)~~~~" << std::endl;
+    }
+  }
+  // // added for the convenience of DEBUGING!
+  // return;
+  //////////////////////////////////////////////////////////////////////////////
+  // Write results to database
+  //////////////////////////////////////////////////////////////////////////////
+
+  for (size_t i = 0; i < num_outputs; ++i) {
+    const auto output_job = output_queue_.Pop();
+    CHECK(output_job.IsValid());
+    auto output = output_job.Data();
+
+    if (output.matches.size() < static_cast<size_t>(options_.min_num_inliers)) {
+      output.matches = {};
+    }
+
+    if (output.two_view_geometry.inlier_matches.size() <
+        static_cast<size_t>(options_.min_num_inliers)) {
+      output.two_view_geometry = TwoViewGeometry();
+      std::cout << "^ ~ ^ output.two_view_geometry.inlier_matches.size() < options_.min_num_inliers" << std::endl;
+    }
+
+    std::cout << "$$$$$$$$ Start WriteMatches~~~~" << std::endl;
+    cache_->WriteMatches(output.image_id1, output.image_id2, output.matches);
+    std::cout << "$$$$$$$$ Start WriteInlierMatches~~~~" << std::endl;
+    cache_->WriteInlierMatches(output.image_id1, output.image_id2,
+                               output.two_view_geometry);
+  }
+
+  CHECK_EQ(output_queue_.Size(), 0);
+}
+
+void SiftFeatureMatcher::AdaptiveCrossCheckOFGuidedMatch(
+    const std::vector<std::pair<image_t, image_t>>& image_pairs,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x_21,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y_21,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_x,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_y,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_x_21,
+    const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_y_21) {
+  std::cout << "SiftFeatureMatcher::AdaptiveCrossCheckOFGuidedMatch" << std::endl;
+  std::cout << "optical_flows_x.size() = " << optical_flows_x.size() << std::endl;
+  std::cout << "optical_flows_y.size() = " << optical_flows_y.size() << std::endl;
+  std::cout << "optical_flows_x_21.size() = " << optical_flows_x_21.size() << std::endl;
+  std::cout << "optical_flows_y_21.size() = " << optical_flows_y_21.size() << std::endl;
+  std::cout << "flowconfs_x.size() = " << flowconfs_x.size() << std::endl;
+  std::cout << "flowconfs_y.size() = " << flowconfs_y.size() << std::endl;
+  std::cout << "flowconfs_x_21.size() = " << flowconfs_x_21.size() << std::endl;
+  std::cout << "flowconfs_y_21.size() = " << flowconfs_y_21.size() << std::endl;
+  CHECK_NOTNULL(database_);
+  CHECK_NOTNULL(cache_);
+  CHECK(is_setup_);
+
+  if (image_pairs.empty()) {
+    return;
+  }
+
+  DatabaseTransaction database_transaction(database_);
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Match the image pairs
+  //////////////////////////////////////////////////////////////////////////////
+
+  std::unordered_set<image_pair_t> image_pair_ids;
+  image_pair_ids.reserve(image_pairs.size());
+
+  size_t num_outputs = 0;
+  // for (const auto image_pair : image_pairs) {
+  for (size_t cnt=0; cnt<image_pairs.size(); cnt++) {
+    const auto image_pair = image_pairs[cnt];
+    const auto optical_flow_x = optical_flows_x[cnt];
+    const auto optical_flow_y = optical_flows_y[cnt];
+    const auto optical_flow_x_21 = optical_flows_x_21[cnt];
+    const auto optical_flow_y_21 = optical_flows_y_21[cnt];
+    const auto flowconf_x = flowconfs_x[cnt];
+    const auto flowconf_y = flowconfs_y[cnt];
+    const auto flowconf_x_21 = flowconfs_x_21[cnt];
+    const auto flowconf_y_21 = flowconfs_y_21[cnt];
+
+    // Avoid self-matches.
+    if (image_pair.first == image_pair.second) {
+      continue;
+    }
+
+    // Avoid duplicate image pairs.
+    const image_pair_t pair_id =
+        Database::ImagePairToPairId(image_pair.first, image_pair.second);
+    if (image_pair_ids.count(pair_id) > 0) {
+      continue;
+    }
+
+    image_pair_ids.insert(pair_id);
+
+    const bool exists_matches =
+        cache_->ExistsMatches(image_pair.first, image_pair.second);
+    const bool exists_inlier_matches =
+        cache_->ExistsInlierMatches(image_pair.first, image_pair.second);
+
+    if (exists_matches && exists_inlier_matches) {
+      continue;
+    }
+
+    num_outputs += 1;
+
+    // If only one of the matches or inlier matches exist, we recompute them
+    // from scratch and delete the existing results. This must be done before
+    // pushing the jobs to the queue, otherwise database constraints might fail
+    // when writing an existing result into the database.
+
+    if (exists_inlier_matches) {
+      cache_->DeleteInlierMatches(image_pair.first, image_pair.second);
+    }
+
+    internal::FeatureMatcherData data;
+    data.image_id1 = image_pair.first;
+    data.image_id2 = image_pair.second;
+    // data.quantization_maps.clear();
+    // data.quantization_maps = std::move(quantization_maps);
+    //data.quantization_maps.assign(quantization_maps.begin(), quantization_maps.end());  // copy the vector data
+    data.optical_flow_x = (optical_flow_x);
+    data.optical_flow_y = (optical_flow_y);
+    data.optical_flow_x_21 = (optical_flow_x_21);
+    data.optical_flow_y_21 = (optical_flow_y_21);
+
+    data.flowconf_x = (flowconf_x);
+    data.flowconf_y = (flowconf_y);
+    data.flowconf_x_21 = (flowconf_x_21);
+    data.flowconf_y_21 = (flowconf_y_21);
 
     if (exists_matches) {
       data.matches = cache_->GetMatches(image_pair.first, image_pair.second);
@@ -2435,178 +2789,857 @@ OFGuidedImagePairsFeatureMatcher::OFGuidedImagePairsFeatureMatcher(
       database_(database_path),
       cache_(options.block_size, &database_),
       matcher_(match_options, &database_, &cache_) {
-  std::cout << "OFGuidedImagePairsFeatureMatcher::constructor()~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "Confidence-Adaptive OFGuidedImagePairsFeatureMatcher::constructor()~~~~~~~~~~~~~~" << std::endl;
   CHECK(options_.Check());
   CHECK(match_options_.Check());
 }
 
 
 void OFGuidedImagePairsFeatureMatcher::Run() {
-  PrintHeading1("Optical flow guided feature matching");
-  std::cout << "OFGuidedImagePairsFeatureMatcher::Run()~~~~~~~~~~~~~~" << std::endl;
-  if (!matcher_.Setup()) {
-    return;
-  }
-  std::cout << "matcher_.Setup()~~~~~~~~~~~~~~" << std::endl;
+  // PrintHeading1("Confidence-Adaptive Optical-Flow Guided feature matching");
+  // std::cout << "Confidence-Adaptive OFGuidedImagePairsFeatureMatcher::Run()~~~~~~~~~~~~~~" << std::endl;
+  // if (!matcher_.Setup()) {
+  //   return;
+  // }
+  // std::cout << "matcher_.Setup()~~~~~~~~~~~~~~" << std::endl;
+  //
+  // cache_.Setup();
+  // std::cout << "cache_.Setup()~~~~~~~~~~~~~~" << std::endl;
+  //
+  // std::unordered_map<std::string, const Image*> image_name_to_image;
+  // image_name_to_image.reserve(cache_.GetImageIds().size());
+  // for (const auto image_id : cache_.GetImageIds()) {
+  //   const auto& image = cache_.GetImage(image_id);
+  //   image_name_to_image.emplace(image.Name(), &image);
+  // }
+  //
+  // std::unordered_map<std::string, image_t> image_name_to_image_id;
+  // image_name_to_image_id.reserve(cache_.GetImageIds().size());
+  // for (const auto image_id : cache_.GetImageIds()) {
+  //   const auto& image = cache_.GetImage(image_id);
+  //   image_name_to_image_id.emplace(image.Name(), image_id);
+  // }
+  //
+  // std::ifstream file(options_.match_list_path);
+  // CHECK(file.is_open()) << options_.match_list_path;
+  //
+  // std::string line;
+  // std::vector<std::pair<image_t, image_t>> image_pairs;
+  // std::vector<FeatureMatches> quantization_maps;
+  // while (std::getline(file, line)) {
+  //   if (IsStopped()) {
+  //     GetTimer().PrintMinutes();
+  //     return;
+  //   }
+  //
+  //   StringTrim(&line);
+  //   // if (line.empty()) {
+  //   //   continue;
+  //   // }
+  //
+  //   std::istringstream line_stream(line);
+  //
+  //   std::string image_name1, image_name2;
+  //   try {
+  //     line_stream >> image_name1 >> image_name2;
+  //   } catch (...) {
+  //     std::cerr << "ERROR: Could not read image pair." << std::endl;
+  //     break;
+  //   }
+  //
+  //   std::cout << StringPrintf("%s - %s", image_name1.c_str(),
+  //                             image_name2.c_str())
+  //             << std::endl;
+  //
+  //
+  //
+  //   const Image& image1 = *image_name_to_image[image_name1];
+  //   const Image& image2 = *image_name_to_image[image_name2];
+  //
+  //   bool skip_pair = false;
+  //   if (database_.ExistsInlierMatches(image1.ImageId(), image2.ImageId())) {
+  //     std::cout << "SKIP: Matches for image pair already exist in database."
+  //               << std::endl;
+  //     skip_pair = true;
+  //   }
+  //
+  //   FeatureMatches quantization_matches_by_pair;
+  //   while (std::getline(file, line)) {
+  //     StringTrim(&line);
+  //
+  //     if (line.empty()) {
+  //       break;
+  //     }
+  //
+  //     std::istringstream line_stream(line);
+  //
+  //     FeatureMatch quantization_match;
+  //     try {
+  //       line_stream >> quantization_match.point2D_idx1 >> quantization_match.point2D_idx2;
+  //     } catch (...) {
+  //       std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
+  //       break;
+  //     }
+  //
+  //     quantization_matches_by_pair.push_back(quantization_match);
+  //   }
+  //   // if (skip_pair) {
+  //   //   continue;
+  //   // }
+  //   if (image_name_to_image.count(image_name1) == 0) {
+  //     std::cout << StringPrintf("SKIP: Image %s not found in database.",
+  //                               image_name1.c_str())
+  //               << std::endl;
+  //     break;
+  //   }
+  //   if (image_name_to_image.count(image_name2) == 0) {
+  //     std::cout << StringPrintf("SKIP: Image %s not found in database.",
+  //                               image_name2.c_str())
+  //               << std::endl;
+  //     break;
+  //   }
+  //
+  //   image_pairs.emplace_back(image_name_to_image_id.at(image_name1),
+  //                            image_name_to_image_id.at(image_name2));
+  //   quantization_maps.push_back(quantization_matches_by_pair);
+  // }
+  // std::cout << "read match_list_file is done!" << std::endl;
+  //
+  //
+  // //////////////////////////////////////////////////////////////////////////////
+  // // Feature matching
+  // //////////////////////////////////////////////////////////////////////////////
+  // std::cout << "options_.block_size = " << options_.block_size << std::endl;
+  // const size_t num_match_blocks = image_pairs.size() / options_.block_size + 1;
+  // //const size_t num_match_blocks = image_pairs.size() / 1 + 1;
+  // std::vector<std::pair<image_t, image_t>> block_image_pairs;
+  // block_image_pairs.reserve(options_.block_size);
+  // std::vector<FeatureMatches> block_quantization_maps;
+  // block_quantization_maps.reserve(options_.block_size);
+  //
+  // for (size_t i = 0; i < image_pairs.size(); i += options_.block_size) {
+  //   std::cout << "Enter Loop: options_.block_size = " << options_.block_size << std::endl;
+  //   if (IsStopped()) {
+  //     GetTimer().PrintMinutes();
+  //     return;
+  //   }
+  //
+  //   Timer timer;
+  //   timer.Start();
+  //
+  //   std::cout << StringPrintf("Matching block [%d/%d]",
+  //                             i / options_.block_size + 1, num_match_blocks)
+  //             << std::flush;
+  //
+  //   const size_t block_end = i + options_.block_size <= image_pairs.size()
+  //                                ? i + options_.block_size
+  //                                : image_pairs.size();
+  //   std::vector<std::pair<image_t, image_t>> block_image_pairs;
+  //   block_image_pairs.reserve(options_.block_size);
+  //   for (size_t j = i; j < block_end; ++j) {
+  //     block_image_pairs.push_back(image_pairs[j]);
+  //   }
+  //   std::vector<FeatureMatches> block_quantization_maps;
+  //   block_quantization_maps.reserve(options_.block_size);
+  //   for (size_t j = i; j < block_end; ++j) {
+  //     block_quantization_maps.push_back(quantization_maps[j]);
+  //   }
+  //
+  //   // if(options_.only_image_pairs_as_ref){
+  //   //     matcher_.Match(block_image_pairs);
+  //   // } else {
+  //   //     matcher_.OFGuidedMatch(block_image_pairs, block_quantization_maps);
+  //   // }
+  //   matcher_.OFGuidedMatch(block_image_pairs, block_quantization_maps);
+  //
+  //   PrintElapsedTime(timer);
+  // }
+  // ////////////////////////////////////////
+  // // shall I add verifiers explicitly???
+  // ////////////////////////////////////////
+  //
+  // ////////////////////////////////////////
+  //
+  // GetTimer().PrintMinutes();
 
-  cache_.Setup();
-  std::cout << "cache_.Setup()~~~~~~~~~~~~~~" << std::endl;
-
-  std::unordered_map<std::string, const Image*> image_name_to_image;
-  image_name_to_image.reserve(cache_.GetImageIds().size());
-  for (const auto image_id : cache_.GetImageIds()) {
-    const auto& image = cache_.GetImage(image_id);
-    image_name_to_image.emplace(image.Name(), &image);
-  }
-
-  std::unordered_map<std::string, image_t> image_name_to_image_id;
-  image_name_to_image_id.reserve(cache_.GetImageIds().size());
-  for (const auto image_id : cache_.GetImageIds()) {
-    const auto& image = cache_.GetImage(image_id);
-    image_name_to_image_id.emplace(image.Name(), image_id);
-  }
-
-  std::ifstream file(options_.match_list_path);
-  CHECK(file.is_open()) << options_.match_list_path;
-
-  std::string line;
-  std::vector<std::pair<image_t, image_t>> image_pairs;
-  std::vector<FeatureMatches> quantization_maps;
-  while (std::getline(file, line)) {
-    if (IsStopped()) {
-      GetTimer().PrintMinutes();
+  if(match_options_.ManualCrossCheck==false){
+    PrintHeading1("Optical flow guided feature matching");
+    std::cout << "NewOFGuidedImagePairsFeatureMatcher::Run()~~~~~~~~~~~~~~" << std::endl;
+    if (!matcher_.Setup()) {
       return;
     }
+    std::cout << "matcher_.Setup()~~~~~~~~~~~~~~" << std::endl;
 
-    StringTrim(&line);
-    // if (line.empty()) {
-    //   continue;
+    cache_.Setup();
+    std::cout << "cache_.Setup()~~~~~~~~~~~~~~" << std::endl;
+
+    std::unordered_map<std::string, const Image*> image_name_to_image;
+    image_name_to_image.reserve(cache_.GetImageIds().size());
+    for (const auto image_id : cache_.GetImageIds()) {
+      const auto& image = cache_.GetImage(image_id);
+      image_name_to_image.emplace(image.Name(), &image);
+    }
+
+    std::unordered_map<std::string, image_t> image_name_to_image_id;
+    image_name_to_image_id.reserve(cache_.GetImageIds().size());
+    for (const auto image_id : cache_.GetImageIds()) {
+      const auto& image = cache_.GetImage(image_id);
+      image_name_to_image_id.emplace(image.Name(), image_id);
+    }
+
+    // std::ifstream file(options_.match_list_path);
+    // CHECK(file.is_open()) << options_.match_list_path;
+    //
+    // std::string line;
+    // std::vector<std::pair<image_t, image_t>> image_pairs;
+    // std::vector<FeatureMatches> quantization_maps;
+    // while (std::getline(file, line)) {
+    //   if (IsStopped()) {
+    //     GetTimer().PrintMinutes();
+    //     return;
+    //   }
+    //
+    //   StringTrim(&line);
+    //   // if (line.empty()) {
+    //   //   continue;
+    //   // }
+    //
+    //   std::istringstream line_stream(line);
+    //
+    //   std::string image_name1, image_name2;
+    //   try {
+    //     line_stream >> image_name1 >> image_name2;
+    //   } catch (...) {
+    //     std::cerr << "ERROR: Could not read image pair." << std::endl;
+    //     break;
+    //   }
+    //
+    //   std::cout << StringPrintf("%s - %s", image_name1.c_str(),
+    //                             image_name2.c_str())
+    //             << std::endl;
+    //
+    //
+    //
+    //   const Image& image1 = *image_name_to_image[image_name1];
+    //   const Image& image2 = *image_name_to_image[image_name2];
+    //
+    //   bool skip_pair = false;
+    //   if (database_.ExistsInlierMatches(image1.ImageId(), image2.ImageId())) {
+    //     std::cout << "SKIP: Matches for image pair already exist in database."
+    //               << std::endl;
+    //     skip_pair = true;
+    //   }
+    //
+    //   FeatureMatches quantization_matches_by_pair;
+    //   while (std::getline(file, line)) {
+    //     StringTrim(&line);
+    //
+    //     if (line.empty()) {
+    //       break;
+    //     }
+    //
+    //     std::istringstream line_stream(line);
+    //
+    //     FeatureMatch quantization_match;
+    //     try {
+    //       line_stream >> quantization_match.point2D_idx1 >> quantization_match.point2D_idx2;
+    //     } catch (...) {
+    //       std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
+    //       break;
+    //     }
+    //
+    //     quantization_matches_by_pair.push_back(quantization_match);
+    //   }
+    //   // if (skip_pair) {
+    //   //   continue;
+    //   // }
+    //   if (image_name_to_image.count(image_name1) == 0) {
+    //     std::cout << StringPrintf("SKIP: Image %s not found in database.",
+    //                               image_name1.c_str())
+    //               << std::endl;
+    //     break;
+    //   }
+    //   if (image_name_to_image.count(image_name2) == 0) {
+    //     std::cout << StringPrintf("SKIP: Image %s not found in database.",
+    //                               image_name2.c_str())
+    //               << std::endl;
+    //     break;
+    //   }
+    //
+    //   image_pairs.emplace_back(image_name_to_image_id.at(image_name1),
+    //                            image_name_to_image_id.at(image_name2));
+    //   quantization_maps.push_back(quantization_matches_by_pair);
     // }
+    // std::cout << "read match_list_file is done!" << std::endl;
 
-    std::istringstream line_stream(line);
+    std::ifstream OFfile(options_.optical_flow_path);
+    CHECK(OFfile.is_open()) << options_.optical_flow_path;
 
-    std::string image_name1, image_name2;
-    try {
-      line_stream >> image_name1 >> image_name2;
-    } catch (...) {
-      std::cerr << "ERROR: Could not read image pair." << std::endl;
-      break;
-    }
-
-    std::cout << StringPrintf("%s - %s", image_name1.c_str(),
-                              image_name2.c_str())
-              << std::endl;
-
-
-
-    const Image& image1 = *image_name_to_image[image_name1];
-    const Image& image2 = *image_name_to_image[image_name2];
-
-    bool skip_pair = false;
-    if (database_.ExistsInlierMatches(image1.ImageId(), image2.ImageId())) {
-      std::cout << "SKIP: Matches for image pair already exist in database."
-                << std::endl;
-      skip_pair = true;
-    }
-
-    FeatureMatches quantization_matches_by_pair;
-    while (std::getline(file, line)) {
-      StringTrim(&line);
-
-      if (line.empty()) {
-        break;
+    std::string OFline;
+    std::vector<std::pair<image_t, image_t>> image_pairs;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> optical_flows_x;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> optical_flows_y;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> flowconfs_x;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> flowconfs_y;
+    while (std::getline(OFfile, OFline)) {
+      if (IsStopped()) {
+        GetTimer().PrintMinutes();
+        return;
       }
 
-      std::istringstream line_stream(line);
+      StringTrim(&OFline);
+      // if (line.empty()) {
+      //   continue;
+      // }
 
-      FeatureMatch quantization_match;
+      std::istringstream line_stream(OFline);
+
+      std::string OF_image_name1, OF_image_name2;
       try {
-        line_stream >> quantization_match.point2D_idx1 >> quantization_match.point2D_idx2;
+        line_stream >> OF_image_name1 >> OF_image_name2;
       } catch (...) {
-        std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
+        std::cerr << "ERROR: Could not read image pair." << std::endl;
         break;
       }
 
-      quantization_matches_by_pair.push_back(quantization_match);
-    }
-    // if (skip_pair) {
-    //   continue;
-    // }
-    if (image_name_to_image.count(image_name1) == 0) {
-      std::cout << StringPrintf("SKIP: Image %s not found in database.",
-                                image_name1.c_str())
+      std::cout << StringPrintf("%s - %s", OF_image_name1.c_str(),
+                                OF_image_name2.c_str())
                 << std::endl;
-      break;
+
+
+
+      const Image& OF_image1 = *image_name_to_image[OF_image_name1];
+      const Image& OF_image2 = *image_name_to_image[OF_image_name2];
+
+      bool OF_skip_pair = false;
+      if (database_.ExistsInlierMatches(OF_image1.ImageId(), OF_image2.ImageId())) {
+        std::cout << "SKIP: Matches for image pair already exist in database."
+                  << std::endl;
+        OF_skip_pair = true;
+      }
+
+      std::vector<float> flow12_x;
+      std::vector<float> flow12_y;
+      std::vector<float> flowconf12_x;
+      std::vector<float> flowconf12_y;
+      while (std::getline(OFfile, OFline)) {
+        StringTrim(&OFline);
+
+        if (OFline.empty()) {
+          break;
+        }
+
+        std::istringstream line_stream(OFline);
+
+        float pixel_flow_xval;
+        float pixel_flow_yval;
+        float pixel_flow21_xval;
+        float pixel_flow21_yval;
+        float pixel_flowconf_xval;
+        float pixel_flowconf_yval;
+        try {
+          line_stream >> pixel_flow_xval >> pixel_flow_yval >> pixel_flow21_xval >> pixel_flow21_yval >> pixel_flowconf_xval >> pixel_flowconf_yval;
+        } catch (...) {
+          std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
+          break;
+        }
+
+        flow12_x.push_back(pixel_flow_xval);
+        flow12_y.push_back(pixel_flow_yval);
+        flowconf12_x.push_back(pixel_flowconf_xval);
+        flowconf12_y.push_back(pixel_flowconf_yval);
+      }
+      // if (skip_pair) {
+      //   continue;
+      // }
+      if (image_name_to_image.count(OF_image_name1) == 0) {
+        std::cout << StringPrintf("SKIP: Image %s not found in database.",
+                                  OF_image_name1.c_str())
+                  << std::endl;
+        break;
+      }
+      if (image_name_to_image.count(OF_image_name2) == 0) {
+        std::cout << StringPrintf("SKIP: Image %s not found in database.",
+                                  OF_image_name2.c_str())
+                  << std::endl;
+        break;
+      }
+
+      image_pairs.emplace_back(image_name_to_image_id.at(OF_image_name1),
+                               image_name_to_image_id.at(OF_image_name2));
+
+      if(flow12_x.size()==48*64){
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_optical_flow_x;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_optical_flow_y;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_flowconf_x;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_flowconf_y;
+          for(int y=0;y<48;y++){
+              for(int x=0;x<64;x++){
+                  int curIdx = y*64+x;
+                  // cur_optical_flow_x.block<1,1>(y,x) = flow12_x[curIdx];
+                  // cur_optical_flow_y.block<1,1>(y,x) = flow12_y[curIdx];
+                  cur_optical_flow_x(y,x) = flow12_x[curIdx];
+                  cur_optical_flow_y(y,x) = flow12_y[curIdx];
+                  cur_flowconf_x(y,x) = flowconf12_x[curIdx];
+                  cur_flowconf_y(y,x) = flowconf12_y[curIdx];
+              }
+          }
+          optical_flows_x.push_back(cur_optical_flow_x);
+          optical_flows_y.push_back(cur_optical_flow_y);
+          flowconfs_x.push_back(cur_flowconf_x);
+          flowconfs_y.push_back(cur_flowconf_y);
+      }
+      else {
+          std::cout << "wrong optical flow reading!" << std::endl;
+      }
+
     }
-    if (image_name_to_image.count(image_name2) == 0) {
-      std::cout << StringPrintf("SKIP: Image %s not found in database.",
-                                image_name2.c_str())
-                << std::endl;
-      break;
-    }
+    std::cout << "read optical_flow_file is done!" << std::endl;
 
-    image_pairs.emplace_back(image_name_to_image_id.at(image_name1),
-                             image_name_to_image_id.at(image_name2));
-    quantization_maps.push_back(quantization_matches_by_pair);
-  }
-  std::cout << "read match_list_file is done!" << std::endl;
-
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Feature matching
-  //////////////////////////////////////////////////////////////////////////////
-  std::cout << "options_.block_size = " << options_.block_size << std::endl;
-  const size_t num_match_blocks = image_pairs.size() / options_.block_size + 1;
-  //const size_t num_match_blocks = image_pairs.size() / 1 + 1;
-  std::vector<std::pair<image_t, image_t>> block_image_pairs;
-  block_image_pairs.reserve(options_.block_size);
-  std::vector<FeatureMatches> block_quantization_maps;
-  block_quantization_maps.reserve(options_.block_size);
-
-  for (size_t i = 0; i < image_pairs.size(); i += options_.block_size) {
-    std::cout << "Enter Loop: options_.block_size = " << options_.block_size << std::endl;
-    if (IsStopped()) {
-      GetTimer().PrintMinutes();
-      return;
-    }
-
-    Timer timer;
-    timer.Start();
-
-    std::cout << StringPrintf("Matching block [%d/%d]",
-                              i / options_.block_size + 1, num_match_blocks)
-              << std::flush;
-
-    const size_t block_end = i + options_.block_size <= image_pairs.size()
-                                 ? i + options_.block_size
-                                 : image_pairs.size();
+    //////////////////////////////////////////////////////////////////////////////
+    // Feature matching
+    //////////////////////////////////////////////////////////////////////////////
+    std::cout << "options_.block_size = " << options_.block_size << std::endl;
+    const size_t num_match_blocks = image_pairs.size() / options_.block_size + 1;
+    //const size_t num_match_blocks = image_pairs.size() / 1 + 1;
     std::vector<std::pair<image_t, image_t>> block_image_pairs;
     block_image_pairs.reserve(options_.block_size);
-    for (size_t j = i; j < block_end; ++j) {
-      block_image_pairs.push_back(image_pairs[j]);
+    // std::vector<FeatureMatches> block_quantization_maps;
+    // block_quantization_maps.reserve(options_.block_size);
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_x;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_y;
+    block_optical_flows_x.reserve(options_.block_size);
+    block_optical_flows_y.reserve(options_.block_size);
+
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_x;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_y;
+    block_flowconfs_x.reserve(options_.block_size);
+    block_flowconfs_y.reserve(options_.block_size);
+
+    for (size_t i = 0; i < image_pairs.size(); i += options_.block_size) {
+      std::cout << "Enter Loop: options_.block_size = " << options_.block_size << std::endl;
+      if (IsStopped()) {
+        GetTimer().PrintMinutes();
+        return;
+      }
+
+      Timer timer;
+      timer.Start();
+
+      std::cout << StringPrintf("Matching block [%d/%d]",
+                                i / options_.block_size + 1, num_match_blocks)
+                << std::flush;
+
+      const size_t block_end = i + options_.block_size <= image_pairs.size()
+                                   ? i + options_.block_size
+                                   : image_pairs.size();
+      std::vector<std::pair<image_t, image_t>> block_image_pairs;
+      block_image_pairs.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_image_pairs.push_back(image_pairs[j]);
+      }
+      // std::vector<FeatureMatches> block_quantization_maps;
+      // block_quantization_maps.reserve(options_.block_size);
+      // for (size_t j = i; j < block_end; ++j) {
+      //   block_quantization_maps.push_back(quantization_maps[j]);
+      // }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_x;
+      block_optical_flows_x.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_optical_flows_x.push_back(optical_flows_x[j]);
+      }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_y;
+      block_optical_flows_y.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_optical_flows_y.push_back(optical_flows_y[j]);
+      }
+
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_x;
+      block_flowconfs_x.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_flowconfs_x.push_back(flowconfs_x[j]);
+      }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_y;
+      block_flowconfs_y.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_flowconfs_y.push_back(flowconfs_y[j]);
+      }
+
+      matcher_.AdaptiveNewOFGuidedMatch(block_image_pairs, block_optical_flows_x, block_optical_flows_y, block_flowconfs_x, block_flowconfs_y);
+
+      PrintElapsedTime(timer);
     }
-    std::vector<FeatureMatches> block_quantization_maps;
-    block_quantization_maps.reserve(options_.block_size);
-    for (size_t j = i; j < block_end; ++j) {
-      block_quantization_maps.push_back(quantization_maps[j]);
+    ////////////////////////////////////////
+
+    GetTimer().PrintMinutes();
+} else {
+    PrintHeading1("ManualCrossCheck Optical flow guided feature matching");
+    std::cout << "CrossCheckOFGuidedImagePairsFeatureMatcher::Run()~~~~~~~~~~~~~~" << std::endl;
+    if (!matcher_.Setup()) {
+      return;
+    }
+    std::cout << "matcher_.Setup()~~~~~~~~~~~~~~" << std::endl;
+
+    cache_.Setup();
+    std::cout << "cache_.Setup()~~~~~~~~~~~~~~" << std::endl;
+
+    std::unordered_map<std::string, const Image*> image_name_to_image;
+    image_name_to_image.reserve(cache_.GetImageIds().size());
+    for (const auto image_id : cache_.GetImageIds()) {
+      const auto& image = cache_.GetImage(image_id);
+      image_name_to_image.emplace(image.Name(), &image);
     }
 
-    // if(options_.only_image_pairs_as_ref){
-    //     matcher_.Match(block_image_pairs);
-    // } else {
-    //     matcher_.OFGuidedMatch(block_image_pairs, block_quantization_maps);
+    std::unordered_map<std::string, image_t> image_name_to_image_id;
+    image_name_to_image_id.reserve(cache_.GetImageIds().size());
+    for (const auto image_id : cache_.GetImageIds()) {
+      const auto& image = cache_.GetImage(image_id);
+      image_name_to_image_id.emplace(image.Name(), image_id);
+    }
+
+    // std::ifstream file(options_.match_list_path);
+    // CHECK(file.is_open()) << options_.match_list_path;
+    //
+    // std::string line;
+    // std::vector<std::pair<image_t, image_t>> image_pairs;
+    // std::vector<FeatureMatches> quantization_maps;
+    // while (std::getline(file, line)) {
+    //   if (IsStopped()) {
+    //     GetTimer().PrintMinutes();
+    //     return;
+    //   }
+    //
+    //   StringTrim(&line);
+    //   // if (line.empty()) {
+    //   //   continue;
+    //   // }
+    //
+    //   std::istringstream line_stream(line);
+    //
+    //   std::string image_name1, image_name2;
+    //   try {
+    //     line_stream >> image_name1 >> image_name2;
+    //   } catch (...) {
+    //     std::cerr << "ERROR: Could not read image pair." << std::endl;
+    //     break;
+    //   }
+    //
+    //   std::cout << StringPrintf("%s - %s", image_name1.c_str(),
+    //                             image_name2.c_str())
+    //             << std::endl;
+    //
+    //
+    //
+    //   const Image& image1 = *image_name_to_image[image_name1];
+    //   const Image& image2 = *image_name_to_image[image_name2];
+    //
+    //   bool skip_pair = false;
+    //   if (database_.ExistsInlierMatches(image1.ImageId(), image2.ImageId())) {
+    //     std::cout << "SKIP: Matches for image pair already exist in database."
+    //               << std::endl;
+    //     skip_pair = true;
+    //   }
+    //
+    //   FeatureMatches quantization_matches_by_pair;
+    //   while (std::getline(file, line)) {
+    //     StringTrim(&line);
+    //
+    //     if (line.empty()) {
+    //       break;
+    //     }
+    //
+    //     std::istringstream line_stream(line);
+    //
+    //     FeatureMatch quantization_match;
+    //     try {
+    //       line_stream >> quantization_match.point2D_idx1 >> quantization_match.point2D_idx2;
+    //     } catch (...) {
+    //       std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
+    //       break;
+    //     }
+    //
+    //     quantization_matches_by_pair.push_back(quantization_match);
+    //   }
+    //   // if (skip_pair) {
+    //   //   continue;
+    //   // }
+    //   if (image_name_to_image.count(image_name1) == 0) {
+    //     std::cout << StringPrintf("SKIP: Image %s not found in database.",
+    //                               image_name1.c_str())
+    //               << std::endl;
+    //     break;
+    //   }
+    //   if (image_name_to_image.count(image_name2) == 0) {
+    //     std::cout << StringPrintf("SKIP: Image %s not found in database.",
+    //                               image_name2.c_str())
+    //               << std::endl;
+    //     break;
+    //   }
+    //
+    //   image_pairs.emplace_back(image_name_to_image_id.at(image_name1),
+    //                            image_name_to_image_id.at(image_name2));
+    //   quantization_maps.push_back(quantization_matches_by_pair);
     // }
-    matcher_.OFGuidedMatch(block_image_pairs, block_quantization_maps);
+    // std::cout << "read match_list_file is done!" << std::endl;
 
-    PrintElapsedTime(timer);
-  }
-  ////////////////////////////////////////
-  // shall I add verifiers explicitly???
-  ////////////////////////////////////////
 
-  ////////////////////////////////////////
+    std::ifstream OFfile(options_.optical_flow_path);
+    CHECK(OFfile.is_open()) << options_.optical_flow_path;
 
-  GetTimer().PrintMinutes();
+    std::string OFline;
+    std::vector<std::pair<image_t, image_t>> image_pairs;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> optical_flows_x;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> optical_flows_y;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> optical_flows_x_21;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> optical_flows_y_21;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> flowconfs_x;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> flowconfs_y;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> flowconfs_x_21;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> flowconfs_y_21;
+    while (std::getline(OFfile, OFline)) {
+      if (IsStopped()) {
+        GetTimer().PrintMinutes();
+        return;
+      }
+
+      StringTrim(&OFline);
+      // if (line.empty()) {
+      //   continue;
+      // }
+
+      std::istringstream line_stream(OFline);
+
+      std::string OF_image_name1, OF_image_name2;
+      try {
+        line_stream >> OF_image_name1 >> OF_image_name2;
+      } catch (...) {
+        std::cerr << "ERROR: Could not read image pair." << std::endl;
+        break;
+      }
+
+      std::cout << StringPrintf("%s - %s", OF_image_name1.c_str(),
+                                OF_image_name2.c_str())
+                << std::endl;
+
+
+
+      const Image& OF_image1 = *image_name_to_image[OF_image_name1];
+      const Image& OF_image2 = *image_name_to_image[OF_image_name2];
+
+      bool OF_skip_pair = false;
+      if (database_.ExistsInlierMatches(OF_image1.ImageId(), OF_image2.ImageId())) {
+        std::cout << "SKIP: Matches for image pair already exist in database."
+                  << std::endl;
+        OF_skip_pair = true;
+      }
+
+      std::vector<float> flow12_x;
+      std::vector<float> flow12_y;
+      std::vector<float> flow21_x;
+      std::vector<float> flow21_y;
+      std::vector<float> flowconf12_x;
+      std::vector<float> flowconf12_y;
+      std::vector<float> flowconf21_x;
+      std::vector<float> flowconf21_y;
+      while (std::getline(OFfile, OFline)) {
+        StringTrim(&OFline);
+
+        if (OFline.empty()) {
+          break;
+        }
+
+        std::istringstream line_stream(OFline);
+
+        float pixel_flow_xval;
+        float pixel_flow_yval;
+        float pixel_flow21_xval;
+        float pixel_flow21_yval;
+        float pixel_flowconf_xval;
+        float pixel_flowconf_yval;
+        float pixel_flowconf21_xval;
+        float pixel_flowconf21_yval;
+        try {
+          line_stream >> pixel_flow_xval >> pixel_flow_yval >> pixel_flow21_xval >> pixel_flow21_yval >> pixel_flowconf_xval >> pixel_flowconf_yval >> pixel_flowconf21_xval >> pixel_flowconf21_yval;
+        } catch (...) {
+          std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
+          break;
+        }
+
+        flow12_x.push_back(pixel_flow_xval);
+        flow12_y.push_back(pixel_flow_yval);
+        flow21_x.push_back(pixel_flow21_xval);
+        flow21_y.push_back(pixel_flow21_yval);
+        flowconf12_x.push_back(pixel_flowconf_xval);
+        flowconf12_y.push_back(pixel_flowconf_yval);
+        flowconf21_x.push_back(pixel_flowconf21_xval);
+        flowconf21_y.push_back(pixel_flowconf21_yval);
+      }
+      // if (skip_pair) {
+      //   continue;
+      // }
+      if (image_name_to_image.count(OF_image_name1) == 0) {
+        std::cout << StringPrintf("SKIP: Image %s not found in database.",
+                                  OF_image_name1.c_str())
+                  << std::endl;
+        break;
+      }
+      if (image_name_to_image.count(OF_image_name2) == 0) {
+        std::cout << StringPrintf("SKIP: Image %s not found in database.",
+                                  OF_image_name2.c_str())
+                  << std::endl;
+        break;
+      }
+
+      image_pairs.emplace_back(image_name_to_image_id.at(OF_image_name1),
+                               image_name_to_image_id.at(OF_image_name2));
+
+      if(flow12_x.size()==48*64){
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_optical_flow_x;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_optical_flow_y;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_optical_flow_x_21;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_optical_flow_y_21;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_flowconf_x;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_flowconf_y;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_flowconf_x_21;
+          Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_flowconf_y_21;
+          for(int y=0;y<48;y++){
+              for(int x=0;x<64;x++){
+                  int curIdx = y*64+x;
+                  // cur_optical_flow_x.block<1,1>(y,x) = flow12_x[curIdx];
+                  // cur_optical_flow_y.block<1,1>(y,x) = flow12_y[curIdx];
+                  cur_optical_flow_x(y,x) = flow12_x[curIdx];
+                  cur_optical_flow_y(y,x) = flow12_y[curIdx];
+                  cur_optical_flow_x_21(y,x) = flow21_x[curIdx];
+                  cur_optical_flow_y_21(y,x) = flow21_y[curIdx];
+                  cur_flowconf_x(y,x) = flowconf12_x[curIdx];
+                  cur_flowconf_y(y,x) = flowconf12_y[curIdx];
+                  cur_flowconf_x_21(y,x) = flowconf21_x[curIdx];
+                  cur_flowconf_y_21(y,x) = flowconf21_y[curIdx];
+              }
+          }
+          optical_flows_x.push_back(cur_optical_flow_x);
+          optical_flows_y.push_back(cur_optical_flow_y);
+          optical_flows_x_21.push_back(cur_optical_flow_x_21);
+          optical_flows_y_21.push_back(cur_optical_flow_y_21);
+          flowconfs_x.push_back(cur_flowconf_x);
+          flowconfs_y.push_back(cur_flowconf_y);
+          flowconfs_x_21.push_back(cur_flowconf_x_21);
+          flowconfs_y_21.push_back(cur_flowconf_y_21);
+      }
+      else {
+          std::cout << "wrong optical flow reading!" << std::endl;
+      }
+
+    }
+    std::cout << "read optical_flow_file is done!" << std::endl;
+
+
+    //////////////////////////////////////////////////////////////////////////////
+    // Feature matching
+    //////////////////////////////////////////////////////////////////////////////
+    std::cout << "options_.block_size = " << options_.block_size << std::endl;
+    const size_t num_match_blocks = image_pairs.size() / options_.block_size + 1;
+    //const size_t num_match_blocks = image_pairs.size() / 1 + 1;
+    std::vector<std::pair<image_t, image_t>> block_image_pairs;
+    block_image_pairs.reserve(options_.block_size);
+    // std::vector<FeatureMatches> block_quantization_maps;
+    // block_quantization_maps.reserve(options_.block_size);
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_x;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_y;
+    block_optical_flows_x.reserve(options_.block_size);
+    block_optical_flows_y.reserve(options_.block_size);
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_x_21;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_y_21;
+    block_optical_flows_x_21.reserve(options_.block_size);
+    block_optical_flows_y_21.reserve(options_.block_size);
+
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_x;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_y;
+    block_flowconfs_x.reserve(options_.block_size);
+    block_flowconfs_y.reserve(options_.block_size);
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_x_21;
+    std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_y_21;
+    block_flowconfs_x_21.reserve(options_.block_size);
+    block_flowconfs_y_21.reserve(options_.block_size);
+
+    for (size_t i = 0; i < image_pairs.size(); i += options_.block_size) {
+      std::cout << "Enter Loop: options_.block_size = " << options_.block_size << std::endl;
+      if (IsStopped()) {
+        GetTimer().PrintMinutes();
+        return;
+      }
+
+      Timer timer;
+      timer.Start();
+
+      std::cout << StringPrintf("Matching block [%d/%d]",
+                                i / options_.block_size + 1, num_match_blocks)
+                << std::flush;
+
+      const size_t block_end = i + options_.block_size <= image_pairs.size()
+                                   ? i + options_.block_size
+                                   : image_pairs.size();
+      std::vector<std::pair<image_t, image_t>> block_image_pairs;
+      block_image_pairs.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_image_pairs.push_back(image_pairs[j]);
+      }
+      // std::vector<FeatureMatches> block_quantization_maps;
+      // block_quantization_maps.reserve(options_.block_size);
+      // for (size_t j = i; j < block_end; ++j) {
+      //   block_quantization_maps.push_back(quantization_maps[j]);
+      // }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_x;
+      block_optical_flows_x.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_optical_flows_x.push_back(optical_flows_x[j]);
+      }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_y;
+      block_optical_flows_y.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_optical_flows_y.push_back(optical_flows_y[j]);
+      }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_x_21;
+      block_optical_flows_x_21.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_optical_flows_x_21.push_back(optical_flows_x_21[j]);
+      }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_y_21;
+      block_optical_flows_y_21.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_optical_flows_y_21.push_back(optical_flows_y_21[j]);
+      }
+
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_x;
+      block_flowconfs_x.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_flowconfs_x.push_back(flowconfs_x[j]);
+      }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_y;
+      block_flowconfs_y.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_flowconfs_y.push_back(flowconfs_y[j]);
+      }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_x_21;
+      block_flowconfs_x_21.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_flowconfs_x_21.push_back(flowconfs_x_21[j]);
+      }
+      std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_flowconfs_y_21;
+      block_flowconfs_y_21.reserve(options_.block_size);
+      for (size_t j = i; j < block_end; ++j) {
+        block_flowconfs_y_21.push_back(flowconfs_y_21[j]);
+      }
+
+      matcher_.AdaptiveCrossCheckOFGuidedMatch(block_image_pairs, block_optical_flows_x, block_optical_flows_y, block_optical_flows_x_21, block_optical_flows_y_21, block_flowconfs_x, block_flowconfs_y, block_flowconfs_x_21, block_flowconfs_y_21);
+
+      PrintElapsedTime(timer);
+    }
+    ////////////////////////////////////////
+
+    GetTimer().PrintMinutes();
+}
+
 }
 
 
@@ -2622,306 +3655,6 @@ NewOFGuidedImagePairsFeatureMatcher::NewOFGuidedImagePairsFeatureMatcher(
   CHECK(options_.Check());
   CHECK(match_options_.Check());
 }
-
-
-// void NewOFGuidedImagePairsFeatureMatcher::Run() {
-//   PrintHeading1("Optical flow guided feature matching");
-//   std::cout << "NewOFGuidedImagePairsFeatureMatcher::Run()~~~~~~~~~~~~~~" << std::endl;
-//   if (!matcher_.Setup()) {
-//     return;
-//   }
-//   std::cout << "matcher_.Setup()~~~~~~~~~~~~~~" << std::endl;
-//
-//   cache_.Setup();
-//   std::cout << "cache_.Setup()~~~~~~~~~~~~~~" << std::endl;
-//
-//   std::unordered_map<std::string, const Image*> image_name_to_image;
-//   image_name_to_image.reserve(cache_.GetImageIds().size());
-//   for (const auto image_id : cache_.GetImageIds()) {
-//     const auto& image = cache_.GetImage(image_id);
-//     image_name_to_image.emplace(image.Name(), &image);
-//   }
-//
-//   std::unordered_map<std::string, image_t> image_name_to_image_id;
-//   image_name_to_image_id.reserve(cache_.GetImageIds().size());
-//   for (const auto image_id : cache_.GetImageIds()) {
-//     const auto& image = cache_.GetImage(image_id);
-//     image_name_to_image_id.emplace(image.Name(), image_id);
-//   }
-//
-//   std::ifstream file(options_.match_list_path);
-//   CHECK(file.is_open()) << options_.match_list_path;
-//
-//   std::string line;
-//   std::vector<std::pair<image_t, image_t>> image_pairs;
-//   std::vector<FeatureMatches> quantization_maps;
-//   while (std::getline(file, line)) {
-//     if (IsStopped()) {
-//       GetTimer().PrintMinutes();
-//       return;
-//     }
-//
-//     StringTrim(&line);
-//     // if (line.empty()) {
-//     //   continue;
-//     // }
-//
-//     std::istringstream line_stream(line);
-//
-//     std::string image_name1, image_name2;
-//     try {
-//       line_stream >> image_name1 >> image_name2;
-//     } catch (...) {
-//       std::cerr << "ERROR: Could not read image pair." << std::endl;
-//       break;
-//     }
-//
-//     std::cout << StringPrintf("%s - %s", image_name1.c_str(),
-//                               image_name2.c_str())
-//               << std::endl;
-//
-//
-//
-//     const Image& image1 = *image_name_to_image[image_name1];
-//     const Image& image2 = *image_name_to_image[image_name2];
-//
-//     bool skip_pair = false;
-//     if (database_.ExistsInlierMatches(image1.ImageId(), image2.ImageId())) {
-//       std::cout << "SKIP: Matches for image pair already exist in database."
-//                 << std::endl;
-//       skip_pair = true;
-//     }
-//
-//     FeatureMatches quantization_matches_by_pair;
-//     while (std::getline(file, line)) {
-//       StringTrim(&line);
-//
-//       if (line.empty()) {
-//         break;
-//       }
-//
-//       std::istringstream line_stream(line);
-//
-//       FeatureMatch quantization_match;
-//       try {
-//         line_stream >> quantization_match.point2D_idx1 >> quantization_match.point2D_idx2;
-//       } catch (...) {
-//         std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
-//         break;
-//       }
-//
-//       quantization_matches_by_pair.push_back(quantization_match);
-//     }
-//     // if (skip_pair) {
-//     //   continue;
-//     // }
-//     if (image_name_to_image.count(image_name1) == 0) {
-//       std::cout << StringPrintf("SKIP: Image %s not found in database.",
-//                                 image_name1.c_str())
-//                 << std::endl;
-//       break;
-//     }
-//     if (image_name_to_image.count(image_name2) == 0) {
-//       std::cout << StringPrintf("SKIP: Image %s not found in database.",
-//                                 image_name2.c_str())
-//                 << std::endl;
-//       break;
-//     }
-//
-//     image_pairs.emplace_back(image_name_to_image_id.at(image_name1),
-//                              image_name_to_image_id.at(image_name2));
-//     quantization_maps.push_back(quantization_matches_by_pair);
-//   }
-//   std::cout << "read match_list_file is done!" << std::endl;
-//
-//
-//   std::ifstream OFfile(options_.optical_flow_path);
-//   CHECK(OFfile.is_open()) << options_.optical_flow_path;
-//
-//   std::string OFline;
-//   std::vector<std::pair<image_t, image_t>> OF_image_pairs;
-//   std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> optical_flows_x;
-//   std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> optical_flows_y;
-//   while (std::getline(OFfile, OFline)) {
-//     if (IsStopped()) {
-//       GetTimer().PrintMinutes();
-//       return;
-//     }
-//
-//     StringTrim(&OFline);
-//     // if (line.empty()) {
-//     //   continue;
-//     // }
-//
-//     std::istringstream line_stream(OFline);
-//
-//     std::string OF_image_name1, OF_image_name2;
-//     try {
-//       line_stream >> OF_image_name1 >> OF_image_name2;
-//     } catch (...) {
-//       std::cerr << "ERROR: Could not read image pair." << std::endl;
-//       break;
-//     }
-//
-//     std::cout << StringPrintf("%s - %s", OF_image_name1.c_str(),
-//                               OF_image_name2.c_str())
-//               << std::endl;
-//
-//
-//
-//     const Image& OF_image1 = *image_name_to_image[OF_image_name1];
-//     const Image& OF_image2 = *image_name_to_image[OF_image_name2];
-//
-//     bool OF_skip_pair = false;
-//     if (database_.ExistsInlierMatches(OF_image1.ImageId(), OF_image2.ImageId())) {
-//       std::cout << "SKIP: Matches for image pair already exist in database."
-//                 << std::endl;
-//       OF_skip_pair = true;
-//     }
-//
-//     std::vector<float> flow12_x;
-//     std::vector<float> flow12_y;
-//     while (std::getline(OFfile, OFline)) {
-//       StringTrim(&OFline);
-//
-//       if (OFline.empty()) {
-//         break;
-//       }
-//
-//       std::istringstream line_stream(OFline);
-//
-//       float pixel_flow_xval;
-//       float pixel_flow_yval;
-//       try {
-//         line_stream >> pixel_flow_xval >> pixel_flow_yval;
-//       } catch (...) {
-//         std::cerr << "ERROR: Cannot read quantization_matches_by_pair." << std::endl;
-//         break;
-//       }
-//
-//       flow12_x.push_back(pixel_flow_xval);
-//       flow12_y.push_back(pixel_flow_yval);
-//     }
-//     // if (skip_pair) {
-//     //   continue;
-//     // }
-//     if (image_name_to_image.count(OF_image_name1) == 0) {
-//       std::cout << StringPrintf("SKIP: Image %s not found in database.",
-//                                 OF_image_name1.c_str())
-//                 << std::endl;
-//       break;
-//     }
-//     if (image_name_to_image.count(OF_image_name2) == 0) {
-//       std::cout << StringPrintf("SKIP: Image %s not found in database.",
-//                                 OF_image_name2.c_str())
-//                 << std::endl;
-//       break;
-//     }
-//
-//     OF_image_pairs.emplace_back(image_name_to_image_id.at(OF_image_name1),
-//                              image_name_to_image_id.at(OF_image_name2));
-//
-//     if(flow12_x.size()==48*64){
-//         Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_optical_flow_x;
-//         Eigen::Matrix<float, 48, 64, Eigen::RowMajor> cur_optical_flow_y;
-//         for(int y=0;y<48;y++){
-//             for(int x=0;x<64;x++){
-//                 int curIdx = y*64+x;
-//                 // cur_optical_flow_x.block<1,1>(y,x) = flow12_x[curIdx];
-//                 // cur_optical_flow_y.block<1,1>(y,x) = flow12_y[curIdx];
-//                 cur_optical_flow_x(y,x) = flow12_x[curIdx];
-//                 cur_optical_flow_y(y,x) = flow12_y[curIdx];
-//             }
-//         }
-//         optical_flows_x.push_back(cur_optical_flow_x);
-//         optical_flows_y.push_back(cur_optical_flow_y);
-//     }
-//     else {
-//         std::cout << "wrong optical flow reading!" << std::endl;
-//     }
-//
-//   }
-//   std::cout << "read optical_flow_file is done!" << std::endl;
-//
-//   if(OF_image_pairs.size()==image_pairs.size()){
-//       std::cout << "pair 0: " << OF_image_pairs[0].first << ", " << OF_image_pairs[0].second << "; " << image_pairs[0].first << ", " << image_pairs[0].second << std::endl;
-//       std::cout << "pair 1: " << OF_image_pairs[1].first << ", " << OF_image_pairs[1].second << "; " << image_pairs[1].first << ", " << image_pairs[1].second << std::endl;
-//       std::cout << "pair 2: " << OF_image_pairs[2].first << ", " << OF_image_pairs[2].second << "; " << image_pairs[2].first << ", " << image_pairs[2].second << std::endl;
-//   } else {
-//       std::cout << "###### inconsistent quantization_map and optical_flow files!" << std::endl;
-//   }
-//
-//   //////////////////////////////////////////////////////////////////////////////
-//   // Feature matching
-//   //////////////////////////////////////////////////////////////////////////////
-//   std::cout << "options_.block_size = " << options_.block_size << std::endl;
-//   const size_t num_match_blocks = image_pairs.size() / options_.block_size + 1;
-//   //const size_t num_match_blocks = image_pairs.size() / 1 + 1;
-//   std::vector<std::pair<image_t, image_t>> block_image_pairs;
-//   block_image_pairs.reserve(options_.block_size);
-//   std::vector<FeatureMatches> block_quantization_maps;
-//   block_quantization_maps.reserve(options_.block_size);
-//   std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_x;
-//   std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_y;
-//   block_optical_flows_x.reserve(options_.block_size);
-//   block_optical_flows_y.reserve(options_.block_size);
-//
-//   for (size_t i = 0; i < image_pairs.size(); i += options_.block_size) {
-//     std::cout << "Enter Loop: options_.block_size = " << options_.block_size << std::endl;
-//     if (IsStopped()) {
-//       GetTimer().PrintMinutes();
-//       return;
-//     }
-//
-//     Timer timer;
-//     timer.Start();
-//
-//     std::cout << StringPrintf("Matching block [%d/%d]",
-//                               i / options_.block_size + 1, num_match_blocks)
-//               << std::flush;
-//
-//     const size_t block_end = i + options_.block_size <= image_pairs.size()
-//                                  ? i + options_.block_size
-//                                  : image_pairs.size();
-//     std::vector<std::pair<image_t, image_t>> block_image_pairs;
-//     block_image_pairs.reserve(options_.block_size);
-//     for (size_t j = i; j < block_end; ++j) {
-//       block_image_pairs.push_back(image_pairs[j]);
-//     }
-//     std::vector<FeatureMatches> block_quantization_maps;
-//     block_quantization_maps.reserve(options_.block_size);
-//     for (size_t j = i; j < block_end; ++j) {
-//       block_quantization_maps.push_back(quantization_maps[j]);
-//     }
-//     std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_x;
-//     block_optical_flows_x.reserve(options_.block_size);
-//     for (size_t j = i; j < block_end; ++j) {
-//       block_optical_flows_x.push_back(optical_flows_x[j]);
-//     }
-//     std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>> block_optical_flows_y;
-//     block_optical_flows_y.reserve(options_.block_size);
-//     for (size_t j = i; j < block_end; ++j) {
-//       block_optical_flows_y.push_back(optical_flows_y[j]);
-//     }
-//
-//     // // if(options_.only_image_pairs_as_ref){
-//     // //     matcher_.Match(block_image_pairs);
-//     // // } else {
-//     // //     matcher_.OFGuidedMatch(block_image_pairs, block_quantization_maps);
-//     // // }
-//     // matcher_.OFGuidedMatch(block_image_pairs, block_quantization_maps);
-//     matcher_.NewOFGuidedMatch(block_image_pairs, block_quantization_maps, block_optical_flows_x, block_optical_flows_y);
-//
-//     PrintElapsedTime(timer);
-//   }
-//   ////////////////////////////////////////
-//   // shall I add verifiers explicitly???
-//   ////////////////////////////////////////
-//
-//   ////////////////////////////////////////
-//
-//   GetTimer().PrintMinutes();
-// }
 
 
 void NewOFGuidedImagePairsFeatureMatcher::Run() {

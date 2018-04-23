@@ -165,6 +165,10 @@ struct FeatureMatcherData {
   Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_y;
   Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_x_21;
   Eigen::Matrix<float, 48, 64, Eigen::RowMajor> optical_flow_y_21;
+  Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_x;
+  Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_y;
+  Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_x_21;
+  Eigen::Matrix<float, 48, 64, Eigen::RowMajor> flowconf_y_21;
 };
 
 }  // namespace internal
@@ -327,6 +331,41 @@ class CrossCheckOFGuidedSiftCPUFeatureMatcher : public FeatureMatcherThread {
   JobQueue<Output>* output_queue_;
 };
 
+
+class AdaptiveNewOFGuidedSiftCPUFeatureMatcher : public FeatureMatcherThread {
+ public:
+  typedef internal::FeatureMatcherData Input;
+  typedef internal::FeatureMatcherData Output;
+
+  AdaptiveNewOFGuidedSiftCPUFeatureMatcher(const SiftMatchingOptions& options,
+                              FeatureMatcherCache* cache,
+                              JobQueue<Input>* input_queue,
+                              JobQueue<Output>* output_queue);
+
+ private:
+  void Run() override;
+
+  JobQueue<Input>* input_queue_;
+  JobQueue<Output>* output_queue_;
+};
+
+class AdaptiveCrossCheckOFGuidedSiftCPUFeatureMatcher : public FeatureMatcherThread {
+ public:
+  typedef internal::FeatureMatcherData Input;
+  typedef internal::FeatureMatcherData Output;
+
+  AdaptiveCrossCheckOFGuidedSiftCPUFeatureMatcher(const SiftMatchingOptions& options,
+                              FeatureMatcherCache* cache,
+                              JobQueue<Input>* input_queue,
+                              JobQueue<Output>* output_queue);
+
+ private:
+  void Run() override;
+
+  JobQueue<Input>* input_queue_;
+  JobQueue<Output>* output_queue_;
+};
+
 class GuidedSiftGPUFeatureMatcher : public FeatureMatcherThread {
  public:
   typedef internal::FeatureMatcherData Input;
@@ -426,6 +465,9 @@ class SiftFeatureMatcher {
   void OFGuidedMatch(const std::vector<std::pair<image_t, image_t>>& image_pairs, const std::vector<FeatureMatches>& quantization_maps);
   void NewOFGuidedMatch(const std::vector<std::pair<image_t, image_t>>& image_pairs, const std::vector<FeatureMatches>& quantization_maps, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y);
   void CrossCheckOFGuidedMatch(const std::vector<std::pair<image_t, image_t>>& image_pairs, const std::vector<FeatureMatches>& quantization_maps, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x_21, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y_21);
+
+  void AdaptiveNewOFGuidedMatch(const std::vector<std::pair<image_t, image_t>>& image_pairs, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_x, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_y);
+  void AdaptiveCrossCheckOFGuidedMatch(const std::vector<std::pair<image_t, image_t>>& image_pairs, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_x_21, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& optical_flows_y_21, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_x, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_y, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_x_21, const std::vector<Eigen::Matrix<float, 48, 64, Eigen::RowMajor>>& flowconfs_y_21);
 
  private:
   SiftMatchingOptions options_;
@@ -662,21 +704,6 @@ class OFGuidedImagePairsFeatureMatcher : public Thread {
   SiftFeatureMatcher matcher_;
 };
 
-// class ReferenceImagePairsFeatureMatcher : public Thread {
-//  public:
-//   ReferenceImagePairsFeatureMatcher(const OFGuidedImagePairsMatchingOptions& options,
-//                            const SiftMatchingOptions& match_options,
-//                            const std::string& database_path);
-//
-//  private:
-//   void Run() override;
-//
-//   const OFGuidedImagePairsMatchingOptions options_;
-//   const SiftMatchingOptions match_options_;
-//   Database database_;
-//   FeatureMatcherCache cache_;
-//   SiftFeatureMatcher matcher_;
-// };
 
 class NewOFGuidedImagePairsFeatureMatcher : public Thread {
  public:
@@ -694,21 +721,6 @@ class NewOFGuidedImagePairsFeatureMatcher : public Thread {
   SiftFeatureMatcher matcher_;
 };
 
-// class CrossCheckOFGuidedImagePairsFeatureMatcher : public Thread {
-//  public:
-//   CrossCheckOFGuidedImagePairsFeatureMatcher(const OFGuidedImagePairsMatchingOptions& options,
-//                            const SiftMatchingOptions& match_options,
-//                            const std::string& database_path);
-//
-//  private:
-//   void Run() override;
-//
-//   const OFGuidedImagePairsMatchingOptions options_;
-//   const SiftMatchingOptions match_options_;
-//   Database database_;
-//   FeatureMatcherCache cache_;
-//   SiftFeatureMatcher matcher_;
-// };
 
 }  // namespace colmap
 
