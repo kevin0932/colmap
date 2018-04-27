@@ -2534,6 +2534,9 @@ void AdaptiveNewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(
   point2D_t DeMoN_OF_Height = 48;
   point2D_t DeMoN_OF_Width = 64;
 
+
+  std::cout << "uncertainty_radius = " << uncertainty_radius << "; image_scale_factor = " << image_scale_factor << "; OF_scale_factor = " << OF_scale_factor << std::endl;
+
   //for(point2D_t cnt=0;cnt<quantization_map.size(); cnt++)
   //{
       // FeatureMatches matches1to2;
@@ -2554,7 +2557,7 @@ void AdaptiveNewOFGuidedMatchSiftFeaturesCPU_One2Multi_byPixel_ManualCrossCheck(
           // DEBUG: Becareful with =!
           if(kp1_lowReso_y2>48 || kp1_lowReso_y1<0 || kp1_lowReso_x2>64 || kp1_lowReso_x1<0){
               std::cout << "keypoints1[kp1Idx].x = " << keypoints1[kp1Idx].x << "; keypoints1[kp1Idx].y = " << keypoints1[kp1Idx].y << "; kp1_lowReso_x = " << kp1_lowReso_x << "; kp1_lowReso_y = " << kp1_lowReso_y << "; kp1_lowReso_x1 = " << kp1_lowReso_x1 << "; kp1_lowReso_x2 = " << kp1_lowReso_x2 << "; kp1_lowReso_y1 = " << kp1_lowReso_y1 << "; kp1_lowReso_y2 = " << kp1_lowReso_y2 << std::endl;
-              std::cout << "###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
+              std::cout << "uncertainty_radius = " << uncertainty_radius << "; match_options.image_scale_factor = " << match_options.image_scale_factor << "; image_scale_factor = " << image_scale_factor << ", ###### skip this kp1 since optical flow guidance is out of image border!" << std::endl;
               continue;
           }
           float flow_kp1_x = 64.0 * image_scale_factor * computeBilinearInterpolation(optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x1), optical_flow_x(kp1_lowReso_y1,kp1_lowReso_x2), optical_flow_x(kp1_lowReso_y2,kp1_lowReso_x2), kp1_lowReso_x1, kp1_lowReso_x2, kp1_lowReso_y1, kp1_lowReso_y2, kp1_lowReso_x, kp1_lowReso_y);

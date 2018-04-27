@@ -16,6 +16,12 @@ COLMAP_ADD_EXECUTABLE(dense_mesher dense_mesher.cc)
 
 COLMAP_ADD_EXECUTABLE(exhaustive_matcher exhaustive_matcher.cc)
 
+COLMAP_ADD_EXECUTABLE(optical_flow_guided_feature_matcher optical_flow_guided_feature_matcher.cc)
+#COLMAP_ADD_EXECUTABLE(optical_flow_guided_feature_matcher_Fixed_and_Standard optical_flow_guided_feature_matcher_Fixed_and_Standard.cc)
+
+
+#COLMAP_ADD_EXECUTABLE(exhaustive_matcher exhaustive_matcher.cc)
+
 COLMAP_ADD_EXECUTABLE(feature_extractor feature_extractor.cc)
 
 COLMAP_ADD_EXECUTABLE(feature_importer feature_importer.cc)

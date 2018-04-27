@@ -134,9 +134,14 @@ struct OFGuidedImagePairsMatchingOptions {
   // Path to the file with the pair matches and predicted optical flow quantization mapping.
   std::string match_list_path = "";
   std::string optical_flow_path = "";
-  size_t image_scale_factor = 24;
-  size_t OF_scale_factor = 1;
-  double uncertainty_radius = 16;
+  // size_t image_scale_factor = 24;
+  // size_t OF_scale_factor = 1;
+  int image_scale_factor = 84;
+  int OF_scale_factor = 1;
+  double uncertainty_radius = 63;
+  // int image_scale_factor;
+  // int OF_scale_factor;
+  // double uncertainty_radius;
   // bool only_image_pairs_as_ref = false;
   bool Check() const;
 };

@@ -45,6 +45,8 @@ OptionManager::OptionManager() {
   sift_extraction.reset(new SiftExtractionOptions());
   sift_matching.reset(new SiftMatchingOptions());
   exhaustive_matching.reset(new ExhaustiveMatchingOptions());
+  OFGuided_matching.reset(new OFGuidedImagePairsMatchingOptions());
+  // NewOFGuided_matching.reset(new OFGuidedImagePairsMatchingOptions());
   sequential_matching.reset(new SequentialMatchingOptions());
   vocab_tree_matching.reset(new VocabTreeMatchingOptions());
   spatial_matching.reset(new SpatialMatchingOptions());
@@ -83,6 +85,9 @@ void OptionManager::AddAllOptions() {
   AddExtractionOptions();
   AddMatchingOptions();
   AddExhaustiveMatchingOptions();
+  //AddOFGuidedMatchingOptions();
+  AddDefaultOFGuidedMatchingOptions();
+  // AddNewOFGuidedMatchingOptions();
   AddSequentialMatchingOptions();
   AddVocabTreeMatchingOptions();
   AddSpatialMatchingOptions();
@@ -220,6 +225,88 @@ void OptionManager::AddExhaustiveMatchingOptions() {
   AddAndRegisterDefaultOption("ExhaustiveMatching.block_size",
                               &exhaustive_matching->block_size);
 }
+
+void OptionManager::AddOFGuidedMatchingOptions(int image_scale_factor, int OF_scale_factor, double uncertainty_radius) {
+  if (added_OFGuided_match_options_) {
+    return;
+  }
+  added_OFGuided_match_options_ = true;
+
+  AddMatchingOptions();
+  // DEBUG
+  std::cout << "test AddOFGuidedMatchingOptions 1 ~~~~~~~~~~~~" << std::endl;
+
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.block_size",
+                              &OFGuided_matching->block_size);
+
+  // DEBUG
+  std::cout << "image_scale_factor = " << image_scale_factor << std::endl;
+  std::cout << "OF_scale_factor = " << OF_scale_factor << std::endl;
+  std::cout << "uncertainty_radius = " << uncertainty_radius << std::endl;
+
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.match_list_path",
+                              &OFGuided_matching->match_list_path);
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.optical_flow_path",
+                              &OFGuided_matching->optical_flow_path);
+  AddAndRegisterOptionWithUpdatedValue("OFGuidedImagePairsMatchingOptions.image_scale_factor",
+                              &OFGuided_matching->image_scale_factor, image_scale_factor);
+  AddAndRegisterOptionWithUpdatedValue("OFGuidedImagePairsMatchingOptions.OF_scale_factor",
+                              &OFGuided_matching->OF_scale_factor, OF_scale_factor);
+  AddAndRegisterOptionWithUpdatedValue("OFGuidedImagePairsMatchingOptions.uncertainty_radius",
+                              &OFGuided_matching->uncertainty_radius, uncertainty_radius);
+
+}
+
+void OptionManager::AddDefaultOFGuidedMatchingOptions() {
+  if (added_OFGuided_match_options_) {
+    return;
+  }
+  added_OFGuided_match_options_ = true;
+
+  AddMatchingOptions();
+  // DEBUG
+  std::cout << "test AddOFGuidedMatchingOptions 1 ~~~~~~~~~~~~" << std::endl;
+
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.block_size",
+                              &OFGuided_matching->block_size);
+
+  // DEBUG
+  std::cout << "test AddOFGuidedMatchingOptions 2 ~~~~~~~~~~~~" << std::endl;
+
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.match_list_path",
+                              &OFGuided_matching->match_list_path);
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.optical_flow_path",
+                              &OFGuided_matching->optical_flow_path);
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.image_scale_factor",
+                              &OFGuided_matching->image_scale_factor);
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.OF_scale_factor",
+                              &OFGuided_matching->OF_scale_factor);
+  AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.uncertainty_radius",
+                              &OFGuided_matching->uncertainty_radius);
+
+}
+
+// void OptionManager::AddNewOFGuidedMatchingOptions() {
+//   if (added_NewOFGuided_match_options_) {
+//     return;
+//   }
+//   added_NewOFGuided_match_options_ = true;
+//
+//   AddMatchingOptions();
+//
+//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.block_size",
+//                               &NewOFGuided_matching->block_size);
+//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.match_list_path",
+//                               &NewOFGuided_matching->match_list_path);
+//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.optical_flow_path",
+//                               &NewOFGuided_matching->optical_flow_path);
+//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.image_scale_factor",
+//                               &NewOFGuided_matching->image_scale_factor);
+//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.OF_scale_factor",
+//                               &NewOFGuided_matching->OF_scale_factor);
+//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.uncertainty_radius",
+//                               &NewOFGuided_matching->uncertainty_radius);
+// }
 
 void OptionManager::AddSequentialMatchingOptions() {
   if (added_sequential_match_options_) {
@@ -560,6 +647,8 @@ void OptionManager::Reset() {
   *sift_extraction = SiftExtractionOptions();
   *sift_matching = SiftMatchingOptions();
   *exhaustive_matching = ExhaustiveMatchingOptions();
+  *OFGuided_matching = OFGuidedImagePairsMatchingOptions();
+  // *NewOFGuided_matching = OFGuidedImagePairsMatchingOptions();
   *sequential_matching = SequentialMatchingOptions();
   *vocab_tree_matching = VocabTreeMatchingOptions();
   *spatial_matching = SpatialMatchingOptions();
@@ -584,6 +673,8 @@ void OptionManager::Reset() {
   added_extraction_options_ = false;
   added_match_options_ = false;
   added_exhaustive_match_options_ = false;
+  added_OFGuided_match_options_ = false;
+  // added_NewOFGuided_match_options_ = false;
   added_sequential_match_options_ = false;
   added_vocab_tree_match_options_ = false;
   added_spatial_match_options_ = false;
@@ -612,6 +703,8 @@ bool OptionManager::Check() {
 
   if (sift_matching) success = success && sift_matching->Check();
   if (exhaustive_matching) success = success && exhaustive_matching->Check();
+  if (OFGuided_matching) success = success && OFGuided_matching->Check();
+  // if (NewOFGuided_matching) success = success && NewOFGuided_matching->Check();
   if (sequential_matching) success = success && sequential_matching->Check();
   if (vocab_tree_matching) success = success && vocab_tree_matching->Check();
   if (spatial_matching) success = success && spatial_matching->Check();

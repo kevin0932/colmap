@@ -157,9 +157,9 @@ struct SiftMatchingOptions {
   bool ColmapFormat = false;
 
   // image scale factor to match the low-resolution optical-flow DeMoN_prediction_to_h5
-  int image_scale_factor = 1;
+  int image_scale_factor = 84;
   int OF_scale_factor = 1;
-  double uncertainty_radius = 16;
+  double uncertainty_radius = 63;
 };
 
 // Extract SIFT features for the given image on the CPU. Only extract

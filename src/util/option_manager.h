@@ -29,6 +29,7 @@ struct ImageReaderOptions;
 struct SiftExtractionOptions;
 struct SiftMatchingOptions;
 struct ExhaustiveMatchingOptions;
+struct OFGuidedImagePairsMatchingOptions;
 struct SequentialMatchingOptions;
 struct VocabTreeMatchingOptions;
 struct SpatialMatchingOptions;
@@ -59,6 +60,9 @@ class OptionManager {
   void AddExtractionOptions();
   void AddMatchingOptions();
   void AddExhaustiveMatchingOptions();
+  void AddOFGuidedMatchingOptions(int image_scale_factor, int OF_scale_factor, double uncertainty_radius);
+  void AddDefaultOFGuidedMatchingOptions();
+  // void AddNewOFGuidedMatchingOptions();
   void AddSequentialMatchingOptions();
   void AddVocabTreeMatchingOptions();
   void AddSpatialMatchingOptions();
@@ -94,6 +98,8 @@ class OptionManager {
 
   std::shared_ptr<SiftMatchingOptions> sift_matching;
   std::shared_ptr<ExhaustiveMatchingOptions> exhaustive_matching;
+  std::shared_ptr<OFGuidedImagePairsMatchingOptions> OFGuided_matching;
+  // std::shared_ptr<OFGuidedImagePairsMatchingOptions> NewOFGuided_matching;
   std::shared_ptr<SequentialMatchingOptions> sequential_matching;
   std::shared_ptr<VocabTreeMatchingOptions> vocab_tree_matching;
   std::shared_ptr<SpatialMatchingOptions> spatial_matching;
@@ -115,6 +121,11 @@ class OptionManager {
   template <typename T>
   void AddAndRegisterDefaultOption(const std::string& name, T* option,
                                    const std::string& help_text = "");
+  template <typename T>
+  void AddAndRegisterOptionWithUpdatedValue(const std::string& name, T* option,
+                                    int new_value,
+                                  const std::string& help_text = "");
+
 
   template <typename T>
   void RegisterOption(const std::string& name, const T* option);
@@ -132,6 +143,8 @@ class OptionManager {
   bool added_extraction_options_;
   bool added_match_options_;
   bool added_exhaustive_match_options_;
+  bool added_OFGuided_match_options_;
+  // bool added_NewOFGuided_match_options_;
   bool added_sequential_match_options_;
   bool added_vocab_tree_match_options_;
   bool added_spatial_match_options_;
@@ -187,16 +200,38 @@ void OptionManager::AddAndRegisterDefaultOption(const std::string& name,
 }
 
 template <typename T>
+void OptionManager::AddAndRegisterOptionWithUpdatedValue(const std::string& name,
+                                                T* option,
+                                                int new_value,
+                                                const std::string& help_text) {
+  std::cout << "AddAndRegisterOptionWithUpdatedValue: new_value = " << new_value << std::endl;
+  desc_->add_options()(
+      name.c_str(),
+      // boost::program_options::value<T>(option)->default_value(new_value),
+      boost::program_options::value<T>(option)->default_value(new_value),
+      help_text.c_str());
+  RegisterOption(name, option);
+}
+
+
+template <typename T>
 void OptionManager::RegisterOption(const std::string& name, const T* option) {
   if (std::is_same<T, bool>::value) {
     options_bool_.emplace_back(name, reinterpret_cast<const bool*>(option));
   } else if (std::is_same<T, int>::value) {
     options_int_.emplace_back(name, reinterpret_cast<const int*>(option));
+    // DEBUGING
+    std::cout << "*reinterpret_cast<const int*>(option) = " << *reinterpret_cast<const int*>(option) << std::endl;
+
   } else if (std::is_same<T, double>::value) {
     options_double_.emplace_back(name, reinterpret_cast<const double*>(option));
+    std::cout << "*reinterpret_cast<const double*>(option) = " << *reinterpret_cast<const double*>(option) << std::endl;
   } else if (std::is_same<T, std::string>::value) {
     options_string_.emplace_back(name,
                                  reinterpret_cast<const std::string*>(option));
+ std::cout << "*reinterpret_cast<const std::string*>(option) = " << *reinterpret_cast<const std::string*>(option) << std::endl;
+  // } else if (std::is_same<T, size_t>::value) {
+  //   options_double_.emplace_back(name, reinterpret_cast<const size_t*>(option));
   } else {
     LOG(FATAL) << "Unsupported option type";
   }
