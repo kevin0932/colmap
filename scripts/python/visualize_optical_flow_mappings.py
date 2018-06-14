@@ -235,18 +235,15 @@ if __name__ == '__main__':
     # quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
 
     input_images_dir = "/home/kevin/ThesisDATA/CVG_Capitole/DenseSIFT/resized_images_2304_3072"
-    quantization_maps = read_quantization_map('/home/kevin/ThesisDATA/CVG_Capitole/demon_prediction_exhaustive_pairs/OrderEnforced_CrossCheckSurvivor_full_quantization_map_OFscale_1_err_5000_survivorRatio_500_validPairNum_276.txt', 'P1000689.JPG---P1000721.JPG')
+    quantization_maps = read_quantization_map('/home/kevin/ThesisDATA/CVG_Capitole/demon_prediction_15_50_050/OrderEnforced_full_quantization_map_OFscale_1_err_36000_survivorRatio_300_validPairNum_296.txt')
 
     # input_images_dir = "/home/kevin/ThesisDATA/labwall/DenseSIFT/images_demon_2304_3072"
     # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/27032018/labwall_occlusion/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt', 'IMG_0928.JPG---IMG_0981.JPG')
     # quantization_maps = read_quantization_map('/home/kevin/ThesisDATA/labwall/demon_prediction_20_30_060/OrderEnforced_full_quantization_map_OFscale_1_err_10000000_survivorRatio_0_validPairNum_172.txt')
 
 
-    # input_images_dir = "/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/images_demon_2304_3072"
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_2_err_2000_survivorRatio_500_validPairNum_183.txt')
-    # # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_2304_3072/DenseSIFT/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_171.txt')
-    # quantization_maps = read_quantization_map('/media/kevin/MYDATA/southbuilding_10032018/demon_prediction_exhaustive_pairs/CrossCheckSurvivor_full_quantization_map_OFscale_1_err_1000_survivorRatio_500_validPairNum_274.txt')
+    # input_images_dir = "/home/kevin/ThesisDATA/southbuilding_april/DenseSIFT/resized_images_2304_3072"
+    # quantization_maps = read_quantization_map('/home/kevin/ThesisDATA/southbuilding_april/demon_prediction_exhaustive_pairs/BothSideSurvivor_OrderEnforced_filter_360_360_full_quantization_map_OFscale_1_err_4000_survivorRatio_600_validPairNum_272.txt')
 
     for image_pair in quantization_maps.keys():
         print("image_pair to be retrieved is ", image_pair)
@@ -258,6 +255,12 @@ if __name__ == '__main__':
         imagepath2 = os.path.join(input_images_dir,image_name2)
         img1 = cv2.imread(imagepath1)
         img2 = cv2.imread(imagepath2)
+
+        # fix the color distortion because the color channel order in cv2
+        img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
+        img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
+
+
 
         img1_gray = to_gray(img1)
         img2_gray = to_gray(img2)
@@ -298,7 +301,7 @@ if __name__ == '__main__':
             if x1>=ROI_xMin*OF_scale_factor/image_scale_factor and x1<=ROI_xMax*OF_scale_factor/image_scale_factor and y1>=ROI_yMin*OF_scale_factor/image_scale_factor and y1<=ROI_yMax*OF_scale_factor/image_scale_factor:
                 ROI_indices.append(cnt)
             #print(quan_id1, " ", x1, " ", y1)
-            kp = cv2.KeyPoint(x1*image_scale_factor, y1*image_scale_factor, 20, 1, 10)
+            kp = cv2.KeyPoint(x1*image_scale_factor, y1*image_scale_factor, 30, 10, 20)
             kp1.append(kp)
         #print(len(kp1))
         kp2 = []
@@ -311,7 +314,7 @@ if __name__ == '__main__':
             x2 = quan_id2 % image_width
             y2 = int((quan_id2-x2) / image_width)
             #print(quan_id2, " ", x2, " ", y2)
-            kp = cv2.KeyPoint(x2*image_scale_factor, y2*image_scale_factor, 20, 1, 10)
+            kp = cv2.KeyPoint(x2*image_scale_factor, y2*image_scale_factor, 30, 10, 20)
             kp2.append(kp)
         #print(len(kp2))
         print ('Here are what our optical flow quantization mapping looks like (matches are subsampled!)')
@@ -379,7 +382,8 @@ if __name__ == '__main__':
                 img1, kp1,
                 img2, kp2,
                 #dummyMatches[:N_MATCHES], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                [], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                # [], img2.copy(), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                [], img2.copy(), flags=4)
 
             plt.figure(figsize=(12,12))
             plt.subplot(211)
