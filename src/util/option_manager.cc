@@ -286,28 +286,6 @@ void OptionManager::AddDefaultOFGuidedMatchingOptions() {
 
 }
 
-// void OptionManager::AddNewOFGuidedMatchingOptions() {
-//   if (added_NewOFGuided_match_options_) {
-//     return;
-//   }
-//   added_NewOFGuided_match_options_ = true;
-//
-//   AddMatchingOptions();
-//
-//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.block_size",
-//                               &NewOFGuided_matching->block_size);
-//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.match_list_path",
-//                               &NewOFGuided_matching->match_list_path);
-//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.optical_flow_path",
-//                               &NewOFGuided_matching->optical_flow_path);
-//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.image_scale_factor",
-//                               &NewOFGuided_matching->image_scale_factor);
-//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.OF_scale_factor",
-//                               &NewOFGuided_matching->OF_scale_factor);
-//   AddAndRegisterDefaultOption("OFGuidedImagePairsMatchingOptions.uncertainty_radius",
-//                               &NewOFGuided_matching->uncertainty_radius);
-// }
-
 void OptionManager::AddSequentialMatchingOptions() {
   if (added_sequential_match_options_) {
     return;
